@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,11 +14,18 @@ import * as Haptics from 'expo-haptics';
 const { width } = Dimensions.get('window');
 
 export default function LobbyScreen({ navigation }: any) {
-  const { game, addPlayer, startGame } = useGame();
+  const { game, addPlayer, startGame, setRoundsPerGame } = useGame();
   const [newPlayerName, setNewPlayerName] = useState('');
+  
+  const roundOptions = [3, 5, 7, 10];
+
+  useEffect(() => {
+    if (!game) {
+      navigation.navigate('Home');
+    }
+  }, [game, navigation]);
 
   if (!game) {
-    navigation.navigate('Home');
     return null;
   }
 
@@ -42,8 +49,14 @@ export default function LobbyScreen({ navigation }: any) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Game Lobby</Text>
-        <Text style={styles.subtitle}>{game.players.length} Player{game.players.length !== 1 ? 's' : ''}</Text>
+        <Text style={styles.title}>WHO'S PLAYING?</Text>
+        <Text style={styles.subtitle}>
+          {game.players.length === 1 
+            ? "Just you? That's... sad." 
+            : game.players.length === 2 
+            ? "Two players. Someone's going down."
+            : `${game.players.length} legends ready to embarrass themselves`}
+        </Text>
       </View>
 
       <View style={styles.playersContainer}>
@@ -67,7 +80,7 @@ export default function LobbyScreen({ navigation }: any) {
       <View style={styles.addPlayerContainer}>
         <TextInput
           style={styles.input}
-          placeholder="Add player name"
+          placeholder="Add another victim"
           placeholderTextColor="#999"
           value={newPlayerName}
           onChangeText={setNewPlayerName}
@@ -85,6 +98,37 @@ export default function LobbyScreen({ navigation }: any) {
         </TouchableOpacity>
       </View>
 
+      <View style={styles.roundsContainer}>
+        <Text style={styles.roundsLabel}>HOW MANY ROUNDS?</Text>
+        <View style={styles.roundsOptions}>
+          {roundOptions.map((rounds) => (
+            <TouchableOpacity
+              key={rounds}
+              style={[
+                styles.roundButton,
+                game.settings.roundsPerGame === rounds && styles.roundButtonSelected,
+              ]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setRoundsPerGame(rounds);
+              }}
+            >
+              <Text
+                style={[
+                  styles.roundButtonText,
+                  game.settings.roundsPerGame === rounds && styles.roundButtonTextSelected,
+                ]}
+              >
+                {rounds}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <Text style={styles.roundsHint}>
+          Playing {game.settings.roundsPerGame} {game.settings.roundsPerGame === 1 ? 'round' : 'rounds'}
+        </Text>
+      </View>
+
       <TouchableOpacity
         style={[
           styles.startButton,
@@ -94,7 +138,9 @@ export default function LobbyScreen({ navigation }: any) {
         disabled={game.players.length < 2}
       >
         <Text style={styles.startButtonText}>
-          {game.players.length < 2 ? 'Need at least 2 players' : 'Start Game'}
+          {game.players.length < 2 
+            ? 'You need friends for this...' 
+            : 'START THE CHAOS'}
         </Text>
       </TouchableOpacity>
     </View>
@@ -195,6 +241,57 @@ const styles = StyleSheet.create({
     fontSize: 32,
     color: '#FFFFFF',
     fontWeight: 'bold',
+  },
+  roundsContainer: {
+    marginBottom: 24,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  roundsLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  roundsOptions: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 8,
+  },
+  roundButton: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+  },
+  roundButtonSelected: {
+    backgroundColor: '#10B981',
+    borderColor: '#FFFFFF',
+    transform: [{ scale: 1.1 }],
+  },
+  roundButtonText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  roundButtonTextSelected: {
+    color: '#FFFFFF',
+  },
+  roundsHint: {
+    fontSize: 14,
+    color: '#E0E7FF',
+    textAlign: 'center',
+    marginTop: 4,
+    fontStyle: 'italic',
   },
   startButton: {
     backgroundColor: '#10B981',

@@ -1,22 +1,42 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
-import { Game, Player, GameRound, DrawingPrompt, Guess } from '../types/game';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { Game, Player, GameRound, DrawingPrompt, Guess, GameHistory } from '../types/game';
 import { getRandomPrompt } from '../data/prompts';
+import { 
+  calculateGuessRewards, 
+  calculateDrawerReward, 
+  calculateSpeedReward 
+} from '../utils/rewards';
+import { saveGameHistory, loadGameHistory, deleteGameHistory, clearAllGameHistory } from '../utils/storage';
 
 interface GameContextType {
   game: Game | null;
   createGame: (playerName: string) => void;
   addPlayer: (name: string) => void;
+  setRoundsPerGame: (rounds: number) => void;
   startGame: () => void;
   startRound: () => void;
   submitGuess: (playerId: string, guess: string) => void;
   endRound: () => void;
   resetGame: () => void;
+  gameHistory: GameHistory[];
+  deleteHistoryEntry: (id: string) => void;
+  clearHistory: () => void;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
 export function GameProvider({ children }: { children: React.ReactNode }) {
   const [game, setGame] = useState<Game | null>(null);
+  const [gameHistory, setGameHistory] = useState<GameHistory[]>([]);
+
+  // Load history on app start
+  useEffect(() => {
+    const fetchHistory = async () => {
+      const history = await loadGameHistory();
+      setGameHistory(history);
+    };
+    fetchHistory();
+  }, []);
 
   const createGame = useCallback((playerName: string) => {
     const newGame: Game = {
@@ -27,6 +47,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
           name: playerName,
           score: 0,
           isDrawing: false,
+          achievements: [],
+          totalRounds: 0,
+          correctGuesses: 0,
+          streak: 0,
         },
       ],
       rounds: [],
@@ -46,6 +70,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       name,
       score: 0,
       isDrawing: false,
+      achievements: [],
+      totalRounds: 0,
+      correctGuesses: 0,
+      streak: 0,
     };
     setGame((prev) => {
       if (!prev) return null;
@@ -56,10 +84,23 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     });
   }, [game]);
 
+  const setRoundsPerGame = useCallback((rounds: number) => {
+    setGame((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        settings: {
+          ...prev.settings,
+          roundsPerGame: rounds,
+        },
+      };
+    });
+  }, []);
+
   const startRound = useCallback(() => {
     setGame((prev) => {
       if (!prev) return null;
-      const roundNumber = prev.rounds.length + 1;
+      const roundNumber = (prev.rounds?.length || 0) + 1;
       const drawerIndex = (roundNumber - 1) % prev.players.length;
       const drawer = prev.players[drawerIndex];
       const prompt = getRandomPrompt();
@@ -76,6 +117,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         ...prev,
         currentRound: newRound,
         state: 'drawing',
+        currentPlayerId: drawer.id, // Set drawer as current player
         players: prev.players.map((p) => ({
           ...p,
           isDrawing: p.id === drawer.id,
@@ -87,24 +129,46 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const startGame = useCallback(() => {
     setGame((prev) => {
       if (!prev || prev.players.length < 2) return prev;
+      
+      // Start the first round immediately
+      const roundNumber = 1;
+      const drawerIndex = 0;
+      const drawer = prev.players[drawerIndex];
+      const prompt = getRandomPrompt();
+
+      const newRound: GameRound = {
+        roundNumber,
+        drawerId: drawer.id,
+        prompt,
+        guesses: [],
+        startTime: Date.now(),
+      };
+
       return {
         ...prev,
+        currentRound: newRound,
         state: 'drawing',
+        currentPlayerId: drawer.id, // Set drawer as current player
+        players: prev.players.map((p) => ({
+          ...p,
+          isDrawing: p.id === drawer.id,
+        })),
       };
     });
-    // Use setTimeout to ensure state is updated before starting round
-    setTimeout(() => {
-      startRound();
-    }, 0);
-  }, [startRound]);
+  }, []);
 
   const submitGuess = useCallback((playerId: string, guess: string) => {
     if (!game || !game.currentRound) return;
     if (playerId === game.currentRound.drawerId) return; // Drawer can't guess
 
+    // Check if this player has already guessed
+    const alreadyGuessed = game.currentRound.guesses.some(g => g.playerId === playerId);
+    if (alreadyGuessed) return; // Prevent duplicate guesses
+
     const normalizedGuess = guess.toLowerCase().trim();
     const correctAnswer = game.currentRound.prompt.word.toLowerCase().trim();
     const isCorrect = normalizedGuess === correctAnswer;
+    const guessTime = Date.now() - game.currentRound.startTime;
 
     const newGuess: Guess = {
       playerId,
@@ -120,26 +184,115 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         guesses: [...prev.currentRound.guesses, newGuess],
       };
 
-      // Update scores
+      // Fast calculation: Calculate everything in one pass
+      const guesser = prev.players.find(p => p.id === playerId);
+      const guessTimeSeconds = Math.floor(guessTime / 1000);
+      const correctGuessesCount = updatedRound.guesses.filter(g => g.isCorrect).length;
+      
+      // Calculate rewards efficiently (only if correct)
+      const rewards = isCorrect && guesser
+        ? calculateGuessRewards(
+            newGuess,
+            updatedRound.guesses,
+            playerId,
+            guessTimeSeconds,
+            prev.settings.roundDuration,
+            guesser
+          )
+        : [];
+
+      // Calculate drawer reward once (if applicable)
+      const drawerReward = isCorrect 
+        ? calculateDrawerReward(correctGuessesCount, prev.players.length)
+        : null;
+
+      // Single pass through players for maximum speed
+      const now = Date.now();
       const updatedPlayers = prev.players.map((player) => {
+        // Fast path: if this player isn't involved, return as-is
+        if (player.id !== playerId && player.id !== prev.currentRound!.drawerId) {
+          return player;
+        }
+
+        let newScore = player.score;
+        let newStreak = player.streak || 0;
+        let correctGuesses = player.correctGuesses || 0;
+        const newAchievements = [...(player.achievements || [])];
+        
+        // Guesser scoring (fast calculation)
         if (isCorrect && player.id === playerId) {
-          // Guesser gets points
-          const timeBonus = Math.max(0, 60 - Math.floor((Date.now() - prev.currentRound!.startTime) / 1000));
-          return { ...player, score: player.score + 10 + timeBonus };
+          // Base points: 10
+          const basePoints = 10;
+          // Time bonus: 1 point per 10 seconds remaining (max 5 points)
+          const timeRemaining = Math.max(0, prev.settings.roundDuration - guessTimeSeconds);
+          const timeBonus = Math.min(5, Math.floor(timeRemaining / 10));
+          
+          // Calculate total reward points
+          let rewardPoints = 0;
+          rewards.forEach(reward => {
+            rewardPoints += reward.points;
+            newAchievements.push({
+              id: `${now}-${Math.random()}`,
+              name: reward.title,
+              description: reward.message,
+              points: reward.points,
+              unlockedAt: now,
+            });
+          });
+          
+          newScore += basePoints + timeBonus + rewardPoints;
+          newStreak = (newStreak || 0) + 1;
+          correctGuesses += 1;
+        } else if (player.id === playerId && !isCorrect) {
+          // Reset streak on wrong guess
+          newStreak = 0;
         }
+        
+        // Drawer scoring (fast calculation)
         if (isCorrect && player.id === prev.currentRound!.drawerId) {
-          // Drawer gets points when someone guesses correctly
-          return { ...player, score: player.score + 5 };
+          const drawerPoints = drawerReward ? drawerReward.points : 3; // Base 3 points
+          newScore += drawerPoints;
+          if (drawerReward) {
+            newAchievements.push({
+              id: `${now}-${Math.random()}`,
+              name: drawerReward.title,
+              description: drawerReward.message,
+              points: drawerReward.points,
+              unlockedAt: now,
+            });
+          }
         }
-        return player;
+        
+        return {
+          ...player,
+          score: newScore,
+          streak: newStreak,
+          correctGuesses: correctGuesses,
+          achievements: newAchievements,
+        };
       });
 
-      return {
-        ...prev,
-        currentRound: updatedRound,
-        players: updatedPlayers,
-        state: isCorrect ? 'results' : prev.state,
-      };
+        // Find next guesser after this one submits
+        const guessers = prev.players.filter(p => p.id !== prev.currentRound!.drawerId);
+        const guessedPlayerIds = Array.from(new Set(updatedRound.guesses.map(g => g.playerId)));
+        const nextGuesser = guessers.find(p => !guessedPlayerIds.includes(p.id));
+
+        // Collect all rewards for the round (guesser + drawer)
+        const allRoundRewards = [...rewards];
+        if (drawerReward) {
+          allRoundRewards.push(drawerReward);
+        }
+
+        return {
+          ...prev,
+          currentRound: {
+            ...updatedRound,
+            rewards: allRoundRewards, // Store all rewards for display
+          },
+          players: updatedPlayers,
+          currentPlayerId: isCorrect ? undefined : (nextGuesser?.id || prev.currentPlayerId),
+          state: isCorrect ? 'results' : prev.state,
+        };
     });
   }, [game]);
 
@@ -147,32 +300,93 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     setGame((prev) => {
       if (!prev || !prev.currentRound) return prev;
 
+      // Fast calculation: Count correct guesses once
+      const correctCount = prev.currentRound.guesses.filter(g => g.isCorrect).length;
+      const drawerReward = calculateDrawerReward(correctCount, prev.players.length);
+      
+      // Add drawer reward to round rewards if applicable
+      const existingRewards = prev.currentRound.rewards || [];
+      const allRewardsWithDrawer = drawerReward 
+        ? [...existingRewards, drawerReward]
+        : existingRewards;
+
+      // Give drawer points from rewards (optimized)
+      const drawerId = prev.currentRound!.drawerId;
+      const drawerRewardPoints = drawerReward ? drawerReward.points : 0;
+      
+      const updatedPlayers = prev.players.map((player) => {
+        if (player.id === drawerId) {
+          return {
+            ...player,
+            score: player.score + drawerRewardPoints,
+            totalRounds: (player.totalRounds || 0) + 1,
+          };
+        }
+        return {
+          ...player,
+          totalRounds: (player.totalRounds || 0) + 1,
+        };
+      });
+
       const updatedRound = {
         ...prev.currentRound,
         endTime: Date.now(),
+        rewards: allRewardsWithDrawer, // All rewards including drawer reward
       };
 
       const allRounds = [...prev.rounds, updatedRound];
       const isGameFinished = allRounds.length >= prev.settings.roundsPerGame;
 
-      // Start next round if game not finished
-      if (!isGameFinished) {
-        setTimeout(() => {
-          startRound();
-        }, 3000);
+      // Find first guesser for guessing phase (after drawing ends)
+      const guessers = prev.players.filter(p => p.id !== prev.currentRound!.drawerId);
+      const firstGuesser = guessers[0] || null;
+
+      // If game is finished, save to history and mark as finished
+      if (isGameFinished) {
+        const finishedGame = {
+          ...prev,
+          rounds: allRounds,
+          currentRound: undefined,
+          state: 'finished' as const,
+          players: updatedPlayers,
+          roundRewards: allRewardsWithDrawer,
+        };
+        
+        // Save to history asynchronously
+        saveGameHistory(finishedGame).then(() => {
+          loadGameHistory().then(history => setGameHistory(history));
+        }).catch(console.error);
+        
+        return finishedGame;
       }
 
+      // Transition to guessing state - don't start next round yet
+      // The next round will start from ResultsScreen when user clicks "Next Round"
       return {
         ...prev,
         rounds: allRounds,
-        currentRound: undefined,
-        state: isGameFinished ? 'finished' : 'drawing',
+        currentRound: updatedRound, // Keep the same round, now in guessing phase
+        state: 'guessing',
+        currentPlayerId: firstGuesser?.id || undefined, // Set first guesser
+        players: updatedPlayers,
+        roundRewards: allRewardsWithDrawer,
       };
     });
-  }, [startRound]);
+  }, []);
 
   const resetGame = useCallback(() => {
     setGame(null);
+  }, []);
+
+  const deleteHistoryEntry = useCallback(async (id: string) => {
+    await deleteGameHistory(id);
+    const updatedHistory = await loadGameHistory();
+    setGameHistory(updatedHistory);
+  }, []);
+
+  const clearHistory = useCallback(async () => {
+    await clearAllGameHistory();
+    setGameHistory([]);
   }, []);
 
   return (
@@ -181,11 +395,15 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         game,
         createGame,
         addPlayer,
+        setRoundsPerGame,
         startGame,
         startRound,
         submitGuess,
         endRound,
         resetGame,
+        gameHistory,
+        deleteHistoryEntry,
+        clearHistory,
       }}
     >
       {children}
