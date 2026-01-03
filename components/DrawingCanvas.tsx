@@ -184,8 +184,8 @@ export default function DrawingCanvas({
     PanResponder.create({
       onStartShouldSetPanResponder: () => enabled,
       onStartShouldSetPanResponderCapture: () => false,
-      onMoveShouldSetPanResponder: () => enabled,
-      onMoveShouldSetPanResponderCapture: () => enabled,
+      onMoveShouldSetPanResponder: () => enabled && isDrawingRef.current,
+      onMoveShouldSetPanResponderCapture: () => false,
       onPanResponderGrant: (evt) => {
         if (!enabled) return;
         const { locationX, locationY } = evt.nativeEvent;
@@ -228,8 +228,10 @@ export default function DrawingCanvas({
       onPanResponderTerminate: () => {
         if (isDrawingRef.current) {
           finishPath();
+          isDrawingRef.current = false;
         }
       },
+      onPanResponderTerminationRequest: () => false,
       onShouldBlockNativeResponder: () => true,
     })
   ).current;
