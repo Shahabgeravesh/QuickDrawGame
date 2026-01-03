@@ -22,42 +22,25 @@ export default function HomeScreen({ navigation }: any) {
   const [drawProgress, setDrawProgress] = useState(0);
 
   useEffect(() => {
-    // Slower, more relaxed drawing animation with pause at end
+    // Slow, continuous drawing animation that loops smoothly
     let progress = 0;
-    let isPaused = false;
     let timeoutId: NodeJS.Timeout | null = null;
-    let pausedTimeoutId: NodeJS.Timeout | null = null;
     
     const animate = () => {
-      if (isPaused) {
-        // Pause for 2 seconds at the end before restarting
-        pausedTimeoutId = setTimeout(() => {
-          isPaused = false;
-          progress = 0;
-          setDrawProgress(0);
-          animate();
-        }, 2000);
-        return;
-      }
-
-      progress += 0.012; // Slower increment for more relaxed feel
+      progress += 0.01; // Slow increment for relaxed, continuous feel
       
-      if (progress >= 1) {
-        progress = 1;
-        setDrawProgress(1);
-        isPaused = true;
-        return;
+      if (progress > 1) {
+        progress = 0; // Reset to loop continuously
       }
       
       setDrawProgress(progress);
-      timeoutId = setTimeout(animate, 60); // Slower frame rate (~16fps) for relaxed animation
+      timeoutId = setTimeout(animate, 70); // Slow frame rate (~14fps) for smooth continuous animation
     };
 
     animate();
 
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
-      if (pausedTimeoutId) clearTimeout(pausedTimeoutId);
     };
   }, []);
 
