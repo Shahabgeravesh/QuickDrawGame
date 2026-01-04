@@ -5,13 +5,14 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  FlatList,
   Dimensions,
+  ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useGame } from '../context/GameContext';
 import * as Haptics from 'expo-haptics';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 export default function LobbyScreen({ navigation }: any) {
   const { game, addPlayer, startGame, setRoundsPerGame } = useGame();
@@ -20,37 +21,62 @@ export default function LobbyScreen({ navigation }: any) {
   const roundOptions = [3, 5, 7, 10];
 
   useEffect(() => {
+    // Only navigate back if game is null and we're actually on this screen
+    // Add a small delay to prevent race conditions during game creation
     if (!game) {
-      navigation.navigate('Home');
+      const timer = setTimeout(() => {
+        // Double-check game is still null before navigating
+        // This prevents navigation during game creation
+        navigation.navigate('Home');
+      }, 300);
+      return () => clearTimeout(timer);
     }
   }, [game, navigation]);
 
-  if (!game) {
-    return null;
-  }
-
   const handleAddPlayer = () => {
+    if (!game) return;
     if (newPlayerName.trim().length === 0) return;
+    
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     addPlayer(newPlayerName.trim());
     setNewPlayerName('');
   };
 
   const handleStart = () => {
+    if (!game) return;
     if (game.players.length < 2) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     startGame();
-    navigation.navigate('Drawing');
+    // Navigation will happen via useEffect in DrawingScreen when state is ready
+    setTimeout(() => {
+      navigation.navigate('Drawing');
+    }, 100);
   };
 
+  // Show loading state while game is being created
+  if (!game) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>WHO'S PLAYING?</Text>
-        <Text style={styles.subtitle}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.header}>
+          <Text style={styles.title}>WHO'S PLAYING?</Text>
+          <Text style={styles.subtitle}>
           {game.players.length === 1 
             ? "Just you? That's... sad." 
             : game.players.length === 2 
@@ -60,21 +86,16 @@ export default function LobbyScreen({ navigation }: any) {
       </View>
 
       <View style={styles.playersContainer}>
-        <FlatList
-          data={game.players}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <View style={styles.playerCard}>
-              <View style={styles.playerAvatar}>
-                <Text style={styles.playerAvatarText}>
-                  {item.name.charAt(0).toUpperCase()}
-                </Text>
-              </View>
-              <Text style={styles.playerName}>{item.name}</Text>
+        {game.players.map((item) => (
+          <View key={item.id} style={styles.playerCard}>
+            <View style={styles.playerAvatar}>
+              <Text style={styles.playerAvatarText}>
+                {item.name.charAt(0).toUpperCase()}
+              </Text>
             </View>
-          )}
-          contentContainerStyle={styles.playersList}
-        />
+            <Text style={styles.playerName}>{item.name}</Text>
+          </View>
+        ))}
       </View>
 
       <View style={styles.addPlayerContainer}>
@@ -143,7 +164,8 @@ export default function LobbyScreen({ navigation }: any) {
             : 'START THE CHAOS'}
         </Text>
       </TouchableOpacity>
-    </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -151,29 +173,32 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#6366F1',
-    padding: 24,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    padding: 20,
+    paddingTop: Math.max(20, height * 0.03),
+    paddingBottom: 24,
   },
   header: {
     alignItems: 'center',
-    marginTop: 60,
-    marginBottom: 32,
+    marginBottom: 24,
   },
   title: {
-    fontSize: 36,
+    fontSize: Math.min(32, width * 0.08),
     fontWeight: 'bold',
     color: '#FFFFFF',
     marginBottom: 8,
+    textAlign: 'center',
   },
   subtitle: {
-    fontSize: 18,
+    fontSize: 16,
     color: '#E0E7FF',
+    textAlign: 'center',
+    paddingHorizontal: 20,
   },
   playersContainer: {
-    flex: 1,
     marginBottom: 24,
-  },
-  playersList: {
-    paddingBottom: 16,
   },
   playerCard: {
     flexDirection: 'row',
@@ -312,6 +337,15 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 20,
     fontWeight: 'bold',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 18,
+    color: '#FFFFFF',
   },
 });
 

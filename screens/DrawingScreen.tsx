@@ -7,14 +7,15 @@ import {
   Dimensions,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useGame } from '../context/GameContext';
 import DrawingCanvas from '../components/DrawingCanvas';
 import * as Haptics from 'expo-haptics';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 export default function DrawingScreen({ navigation }: any) {
-  const { game, endRound } = useGame();
+  const { game, endRound, resetGame } = useGame();
   const [timeLeft, setTimeLeft] = useState(60);
   const [clearTrigger, setClearTrigger] = useState(0);
   const [isEraser, setIsEraser] = useState(false);
@@ -77,6 +78,28 @@ export default function DrawingScreen({ navigation }: any) {
     setClearTrigger((prev) => prev + 1);
   };
 
+  const handleExit = () => {
+    Alert.alert(
+      'Exit Game?',
+      'Are you sure you want to exit? All progress will be lost.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Exit',
+          style: 'destructive',
+          onPress: () => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            resetGame();
+            navigation.navigate('Home');
+          },
+        },
+      ]
+    );
+  };
+
   if (!game || !game.currentRound) {
     return null;
   }
@@ -110,16 +133,21 @@ export default function DrawingScreen({ navigation }: any) {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <View style={styles.topBar}>
           <View style={styles.roundProgressContainer}>
-            <Text style={styles.roundProgressText}>
+            <Text style={styles.roundProgressText} numberOfLines={1}>
               Round {game.currentRound.roundNumber} of {game.settings.roundsPerGame}
             </Text>
           </View>
-          <View style={styles.timerContainer}>
-            <Text style={styles.timerText}>{timeLeft}s</Text>
+          <View style={styles.topBarRight}>
+            <View style={styles.timerContainer}>
+              <Text style={styles.timerText}>{timeLeft}s</Text>
+            </View>
+            <TouchableOpacity style={styles.exitButton} onPress={handleExit}>
+              <Text style={styles.exitButtonText}>Exit</Text>
+            </TouchableOpacity>
           </View>
         </View>
         
@@ -212,7 +240,7 @@ export default function DrawingScreen({ navigation }: any) {
           </View>
         )}
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -225,20 +253,22 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
     borderBottomWidth: 2,
     borderBottomColor: '#E5E7EB',
-    paddingTop: 12,
-    paddingBottom: 16,
-    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 12,
+    paddingHorizontal: 16,
+    minHeight: 60,
   },
   topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
+    minHeight: 40,
   },
   secretPromptContainer: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: 12,
+    padding: 14,
     borderWidth: 2,
     borderColor: '#E5E7EB',
     shadowColor: '#000',
@@ -282,12 +312,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   secretWord: {
-    fontSize: 36,
+    fontSize: Math.min(32, width * 0.08),
     fontWeight: '900',
     color: '#6366F1',
     textAlign: 'center',
-    letterSpacing: 4,
-    marginBottom: 8,
+    letterSpacing: 2,
+    marginBottom: 6,
   },
   categoryText: {
     fontSize: 14,
@@ -319,22 +349,53 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     textAlign: 'center',
   },
+  roundProgressContainer: {
+    flex: 1,
+    marginRight: 12,
+    minWidth: 100,
+  },
+  roundProgressText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  topBarRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   timerContainer: {
     backgroundColor: '#EF4444',
     borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    minWidth: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   timerText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#FFFFFF',
+  },
+  exitButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+  },
+  exitButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#6B7280',
   },
   waitingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: 20,
   },
   waitingText: {
     fontSize: 24,
@@ -361,7 +422,8 @@ const styles = StyleSheet.create({
   },
   canvasContainer: {
     flex: 1,
-    padding: 20,
+    padding: 12,
+    minHeight: 200,
   },
   controlsContainer: {
     backgroundColor: '#FFFFFF',

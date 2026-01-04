@@ -7,12 +7,14 @@ import {
   FlatList,
   Dimensions,
   ScrollView,
+  Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useGame } from '../context/GameContext';
 import * as Haptics from 'expo-haptics';
 import { getScoreTitle } from '../utils/rewards';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 export default function ResultsScreen({ navigation }: any) {
   const { game, resetGame, startRound } = useGame();
@@ -27,6 +29,17 @@ export default function ResultsScreen({ navigation }: any) {
     }
   }, [game, navigation]);
 
+  // Watch for round start and navigate when ready
+  useEffect(() => {
+    if (game && game.currentRound && game.state === 'drawing') {
+      // Small delay to ensure state is fully updated
+      const timer = setTimeout(() => {
+        navigation.navigate('Drawing');
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [game?.state, game?.currentRound?.roundNumber, navigation]);
+
   if (!game || !game.currentRound) {
     return null;
   }
@@ -38,9 +51,8 @@ export default function ResultsScreen({ navigation }: any) {
       resetGame();
       navigation.navigate('Home');
     } else {
-      // Start the next round
+      // Start the next round - navigation will happen via useEffect when state updates
       startRound();
-      navigation.navigate('Drawing');
     }
   };
 
@@ -49,6 +61,28 @@ export default function ResultsScreen({ navigation }: any) {
     setShowRewards(false);
     resetGame();
     navigation.navigate('Home');
+  };
+
+  const handleExit = () => {
+    Alert.alert(
+      'Exit Game?',
+      'Are you sure you want to exit? All progress will be lost.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Exit',
+          style: 'destructive',
+          onPress: () => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            resetGame();
+            navigation.navigate('Home');
+          },
+        },
+      ]
+    );
   };
 
   const sortedPlayers = [...game.players].sort((a, b) => b.score - a.score);
@@ -86,12 +120,18 @@ export default function ResultsScreen({ navigation }: any) {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
-        <View style={styles.roundProgressContainer}>
-          <Text style={styles.roundProgressText}>
-            Round {game.currentRound.roundNumber} of {game.settings.roundsPerGame}
-          </Text>
+        <View style={styles.headerTop}>
+          <View style={styles.roundProgressContainer}>
+            <Text style={styles.roundProgressText}>
+              Round {game.currentRound.roundNumber} of {game.settings.roundsPerGame}
+            </Text>
+          </View>
+          <TouchableOpacity style={styles.exitButton} onPress={handleExit}>
+            <Text style={styles.exitButtonText}>Exit</Text>
+          </TouchableOpacity>
         </View>
         <Text style={styles.title}>{getResultTitle()}</Text>
         <Text style={styles.message}>{getResultMessage()}</Text>
@@ -174,7 +214,8 @@ export default function ResultsScreen({ navigation }: any) {
           </TouchableOpacity>
         )}
       </View>
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -191,10 +232,15 @@ const styles = StyleSheet.create({
     padding: 24,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 16,
   },
   roundProgressContainer: {
-    marginBottom: 12,
+    flex: 1,
     paddingVertical: 6,
     paddingHorizontal: 16,
     backgroundColor: '#F3F4F6',
@@ -411,6 +457,19 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  exitButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+  },
+  exitButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#6B7280',
   },
 });
 

@@ -9,11 +9,12 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { loadGameHistory, deleteGameHistory, clearAllGameHistory } from '../utils/storage';
 import type { GameHistory } from '../types/game';
 import * as Haptics from 'expo-haptics';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 export default function HistoryScreen({ navigation }: any) {
   const [history, setHistory] = useState<GameHistory[]>([]);
@@ -85,7 +86,7 @@ export default function HistoryScreen({ navigation }: any) {
 
   if (loading) {
     return (
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <Text style={styles.backButtonText}>← Back</Text>
@@ -95,13 +96,13 @@ export default function HistoryScreen({ navigation }: any) {
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Loading...</Text>
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
 
   if (history.length === 0) {
     return (
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <Text style={styles.backButtonText}>← Back</Text>
@@ -114,12 +115,12 @@ export default function HistoryScreen({ navigation }: any) {
             Your completed games will show up here
           </Text>
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Text style={styles.backButtonText}>← Back</Text>
@@ -182,9 +183,9 @@ export default function HistoryScreen({ navigation }: any) {
           );
         }}
       />
-    </View>
-  );
-}
+      </SafeAreaView>
+    );
+  }
 
 const styles = StyleSheet.create({
   container: {

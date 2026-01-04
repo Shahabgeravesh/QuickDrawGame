@@ -10,14 +10,15 @@ import {
   Alert,
   Animated,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { useGame } from '../context/GameContext';
 import * as Haptics from 'expo-haptics';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 export default function GuessingScreen({ navigation }: any) {
-  const { game, submitGuess } = useGame();
+  const { game, submitGuess, resetGame } = useGame();
   const [guess, setGuess] = useState('');
   const [timeLeft, setTimeLeft] = useState(30);
   const [showWaitingAnimation, setShowWaitingAnimation] = useState(false);
@@ -106,8 +107,21 @@ export default function GuessingScreen({ navigation }: any) {
 
     const guessText = guess.trim();
     
-    // Check if correct for immediate feedback
-    const isCorrect = guessText.toLowerCase() === game.currentRound.prompt.word.toLowerCase();
+    // Check if correct for immediate feedback (use same matching logic as submitGuess)
+    const normalizedGuess = guessText.toLowerCase().trim();
+    const normalizedAnswer = game.currentRound.prompt.word.toLowerCase().trim();
+    let isCorrect = normalizedGuess === normalizedAnswer;
+    
+    // Handle word variations if not exact match
+    if (!isCorrect && normalizedGuess.length >= 3 && normalizedAnswer.length >= 3) {
+      const baseGuess = normalizedGuess.replace(/(ing|ed|s|es|er|est)$/, '');
+      const baseAnswer = normalizedAnswer.replace(/(ing|ed|s|es|er|est)$/, '');
+      isCorrect = baseGuess === baseAnswer || 
+                  baseGuess === normalizedAnswer || 
+                  normalizedGuess === baseAnswer ||
+                  normalizedAnswer.includes(normalizedGuess) ||
+                  normalizedGuess.includes(normalizedAnswer);
+    }
     
     if (isCorrect) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -118,6 +132,28 @@ export default function GuessingScreen({ navigation }: any) {
     submitGuess(currentGuesser.id, guessText);
     setGuess('');
     // Navigation will be handled by useEffect when game state changes
+  };
+
+  const handleExit = () => {
+    Alert.alert(
+      'Exit Game?',
+      'Are you sure you want to exit? All progress will be lost.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Exit',
+          style: 'destructive',
+          onPress: () => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            resetGame();
+            navigation.navigate('Home');
+          },
+        },
+      ]
+    );
   };
 
   if (!game || !game.currentRound) {
@@ -222,20 +258,29 @@ export default function GuessingScreen({ navigation }: any) {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.title}>WHAT EVEN IS THIS?</Text>
-        <Text style={styles.drawerName}>{drawer?.name}'s masterpiece (or disaster)</Text>
+        <View style={styles.headerTop}>
+          <View style={styles.titleContainer}>
+            <Text style={styles.title} numberOfLines={1}>WHAT EVEN IS THIS?</Text>
+            <Text style={styles.drawerName} numberOfLines={1}>{drawer?.name}'s masterpiece</Text>
+          </View>
+          <View style={styles.headerTopRight}>
+            <View style={styles.timerContainer}>
+              <Text style={styles.timerText}>{timeLeft}s</Text>
+            </View>
+            <TouchableOpacity style={styles.exitButton} onPress={handleExit}>
+              <Text style={styles.exitButtonText}>Exit</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
         <View style={styles.currentPlayerContainer}>
           <Text style={styles.currentPlayerLabel}>YOUR TURN TO GUESS:</Text>
           <View style={styles.playerBadge}>
             <Text style={styles.playerBadgeInitial}>{currentGuesser.name.charAt(0).toUpperCase()}</Text>
-            <Text style={styles.currentPlayerName}>{currentGuesser.name}</Text>
+            <Text style={styles.currentPlayerName} numberOfLines={1}>{currentGuesser.name}</Text>
           </View>
-          <Text style={styles.playerHint}>Pass the device to {currentGuesser.name} if it's not you</Text>
-        </View>
-        <View style={styles.timerContainer}>
-          <Text style={styles.timerText}>{timeLeft}s</Text>
+          <Text style={styles.playerHint} numberOfLines={2}>Pass the device to {currentGuesser.name} if it's not you</Text>
         </View>
       </View>
 
@@ -299,7 +344,7 @@ export default function GuessingScreen({ navigation }: any) {
           </Text>
         )}
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -310,27 +355,38 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: '#FFFFFF',
-    padding: 24,
+    paddingTop: 12,
+    paddingBottom: 12,
+    paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
-    alignItems: 'center',
+    minHeight: 80,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+    minHeight: 50,
+  },
+  titleContainer: {
+    flex: 1,
+    marginRight: 12,
   },
   title: {
-    fontSize: 28,
+    fontSize: Math.min(24, width * 0.06),
     fontWeight: 'bold',
     color: '#1F2937',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   drawerName: {
-    fontSize: 18,
+    fontSize: 14,
     color: '#6B7280',
-    marginBottom: 12,
   },
   currentPlayerContainer: {
     backgroundColor: '#EEF2FF',
     borderRadius: 12,
-    padding: 12,
-    marginBottom: 16,
+    padding: 10,
     alignItems: 'center',
   },
   currentPlayerLabel: {
@@ -373,16 +429,39 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     textAlign: 'center',
   },
+  headerTopRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   timerContainer: {
     backgroundColor: '#EF4444',
     borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    minWidth: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'flex-start',
   },
   timerText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#FFFFFF',
+  },
+  exitButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    alignSelf: 'flex-start',
+  },
+  exitButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#6B7280',
   },
   waitingContainer: {
     flex: 1,
@@ -412,7 +491,8 @@ const styles = StyleSheet.create({
   },
   guessesContainer: {
     flex: 1,
-    padding: 16,
+    padding: 12,
+    minHeight: 150,
   },
   guessesLabel: {
     fontSize: 16,
@@ -494,7 +574,7 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     backgroundColor: '#FFFFFF',
-    padding: 16,
+    padding: 12,
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
   },

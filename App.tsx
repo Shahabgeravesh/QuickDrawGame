@@ -10,6 +10,7 @@ import ViewingScreen from './screens/ViewingScreen';
 import GuessingScreen from './screens/GuessingScreen';
 import ResultsScreen from './screens/ResultsScreen';
 import HistoryScreen from './screens/HistoryScreen';
+import TutorialScreen from './screens/TutorialScreen';
 
 const Stack = createStackNavigator();
 
@@ -23,6 +24,7 @@ export default function App() {
             headerShown: false,
             cardStyle: { backgroundColor: '#FFFFFF' },
             animationEnabled: true,
+            gestureEnabled: false, // Disable swipe gestures globally for game screens
           }}
         >
           <Stack.Screen 
@@ -42,22 +44,38 @@ export default function App() {
           <Stack.Screen 
             name="Drawing" 
             component={DrawingScreen}
+            options={{
+              gestureEnabled: false,
+            }}
           />
           <Stack.Screen 
             name="Viewing" 
             component={ViewingScreen}
+            options={{
+              gestureEnabled: false,
+            }}
           />
           <Stack.Screen 
             name="Guessing" 
             component={GuessingScreen}
+            options={{
+              gestureEnabled: false,
+            }}
           />
           <Stack.Screen 
             name="Results" 
             component={ResultsScreen}
+            options={{
+              gestureEnabled: false,
+            }}
           />
           <Stack.Screen 
             name="History" 
             component={HistoryScreen}
+          />
+          <Stack.Screen 
+            name="Tutorial" 
+            component={TutorialScreen}
           />
         </Stack.Navigator>
       </NavigationContainer>

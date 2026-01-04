@@ -8,6 +8,60 @@ import {
 } from '../utils/rewards';
 import { saveGameHistory, loadGameHistory, deleteGameHistory, clearAllGameHistory } from '../utils/storage';
 
+// Helper function to check if guesses match (handles variations like cycle/cycling)
+function isGuessCorrect(guess: string, correctAnswer: string): boolean {
+  const normalizedGuess = guess.toLowerCase().trim();
+  const normalizedAnswer = correctAnswer.toLowerCase().trim();
+  
+  // Exact match (fast path)
+  if (normalizedGuess === normalizedAnswer) {
+    return true;
+  }
+  
+  // Check if one contains the other (minimum 3 characters to avoid false positives)
+  if (normalizedGuess.length >= 3 && normalizedAnswer.length >= 3) {
+    // Check if guess is contained in answer or vice versa
+    if (normalizedAnswer.includes(normalizedGuess) || normalizedGuess.includes(normalizedAnswer)) {
+      // Get the base word (shorter one, or the one without common suffixes)
+      const baseGuess = normalizedGuess.replace(/(ing|ed|s|es|er|est)$/, '');
+      const baseAnswer = normalizedAnswer.replace(/(ing|ed|s|es|er|est)$/, '');
+      
+      // If base words match, it's correct
+      if (baseGuess === baseAnswer && baseGuess.length >= 3) {
+        return true;
+      }
+      
+      // Check if one is the base of the other
+      if (baseGuess === normalizedAnswer || normalizedGuess === baseAnswer) {
+        return true;
+      }
+    }
+  }
+  
+  // Handle common word variations
+  const commonSuffixes = ['ing', 'ed', 's', 'es', 'er', 'est'];
+  for (const suffix of commonSuffixes) {
+    // Remove suffix from both and compare
+    const guessWithoutSuffix = normalizedGuess.endsWith(suffix) 
+      ? normalizedGuess.slice(0, -suffix.length) 
+      : normalizedGuess;
+    const answerWithoutSuffix = normalizedAnswer.endsWith(suffix)
+      ? normalizedAnswer.slice(0, -suffix.length)
+      : normalizedAnswer;
+    
+    if (guessWithoutSuffix === normalizedAnswer || normalizedGuess === answerWithoutSuffix) {
+      return true;
+    }
+    
+    // Compare both without suffixes
+    if (guessWithoutSuffix === answerWithoutSuffix && guessWithoutSuffix.length >= 3) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
 interface GameContextType {
   game: Game | null;
   createGame: (playerName: string) => void;
@@ -64,25 +118,24 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const addPlayer = useCallback((name: string) => {
-    if (!game) return;
-    const newPlayer: Player = {
-      id: (game.players.length + 1).toString(),
-      name,
-      score: 0,
-      isDrawing: false,
-      achievements: [],
-      totalRounds: 0,
-      correctGuesses: 0,
-      streak: 0,
-    };
     setGame((prev) => {
       if (!prev) return null;
+      const newPlayer: Player = {
+        id: (prev.players.length + 1).toString(),
+        name,
+        score: 0,
+        isDrawing: false,
+        achievements: [],
+        totalRounds: 0,
+        correctGuesses: 0,
+        streak: 0,
+      };
       return {
         ...prev,
         players: [...prev.players, newPlayer],
       };
     });
-  }, [game]);
+  }, []);
 
   const setRoundsPerGame = useCallback((rounds: number) => {
     setGame((prev) => {
@@ -100,7 +153,16 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const startRound = useCallback(() => {
     setGame((prev) => {
       if (!prev) return null;
-      const roundNumber = (prev.rounds?.length || 0) + 1;
+      
+      // Calculate next round number based on completed rounds
+      const completedRounds = prev.rounds?.length || 0;
+      const roundNumber = completedRounds + 1;
+      
+      // Check if we've reached the max rounds
+      if (roundNumber > prev.settings.roundsPerGame) {
+        return prev; // Don't start a new round if we've exceeded the limit
+      }
+      
       const drawerIndex = (roundNumber - 1) % prev.players.length;
       const drawer = prev.players[drawerIndex];
       const prompt = getRandomPrompt();
@@ -165,9 +227,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     const alreadyGuessed = game.currentRound.guesses.some(g => g.playerId === playerId);
     if (alreadyGuessed) return; // Prevent duplicate guesses
 
-    const normalizedGuess = guess.toLowerCase().trim();
-    const correctAnswer = game.currentRound.prompt.word.toLowerCase().trim();
-    const isCorrect = normalizedGuess === correctAnswer;
+    // Use flexible matching to handle word variations (e.g., cycle/cycling)
+    const isCorrect = isGuessCorrect(guess, game.currentRound.prompt.word);
     const guessTime = Date.now() - game.currentRound.startTime;
 
     const newGuess: Guess = {

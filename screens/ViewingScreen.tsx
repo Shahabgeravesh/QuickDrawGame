@@ -5,10 +5,11 @@ import {
   StyleSheet,
   Dimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useGame } from '../context/GameContext';
 import DrawingCanvas from '../components/DrawingCanvas';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 export default function ViewingScreen({ navigation }: any) {
   const { game } = useGame();
@@ -46,11 +47,11 @@ export default function ViewingScreen({ navigation }: any) {
   const drawer = game.players.find((p) => p.id === game.currentRound!.drawerId);
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <View style={styles.infoContainer}>
-          <Text style={styles.viewerLabel}>Watching {drawer?.name} draw...</Text>
-          <Text style={styles.hintText}>Try to guess what it is!</Text>
+          <Text style={styles.viewerLabel} numberOfLines={1}>Watching {drawer?.name} draw...</Text>
+          <Text style={styles.hintText} numberOfLines={1}>Try to guess what it is!</Text>
         </View>
         <View style={styles.timerContainer}>
           <Text style={styles.timerText}>{timeLeft}s</Text>
@@ -73,7 +74,7 @@ export default function ViewingScreen({ navigation }: any) {
           The drawing will disappear when it's your turn to guess
         </Text>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -86,39 +87,47 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    paddingTop: 12,
+    paddingBottom: 12,
+    paddingHorizontal: 16,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
+    minHeight: 60,
   },
   infoContainer: {
     flex: 1,
+    marginRight: 12,
   },
   viewerLabel: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     color: '#6366F1',
     marginBottom: 4,
   },
   hintText: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#6B7280',
     fontStyle: 'italic',
   },
   timerContainer: {
     backgroundColor: '#EF4444',
     borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    minWidth: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   timerText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#FFFFFF',
   },
   canvasContainer: {
     flex: 1,
-    padding: 20,
+    padding: 12,
+    minHeight: 200,
   },
   instructionsContainer: {
     backgroundColor: '#FFFFFF',
@@ -140,4 +149,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+
 
