@@ -12,17 +12,37 @@ import {
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Path, Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import { useGame } from '../context/GameContext';
 import * as Haptics from 'expo-haptics';
 
 const { width, height } = Dimensions.get('window');
 
-export default function HomeScreen({ navigation }: any) {
+export default function HomeScreen({ navigation, route }: any) {
   const [playerName, setPlayerName] = useState('');
-  const { createGame, game } = useGame();
+  const { createGame, game, resetGame } = useGame();
   const [drawProgress, setDrawProgress] = useState(0);
   const [isNavigating, setIsNavigating] = useState(false);
+  const isCreatingGameRef = useRef(false); // Track if we're in the middle of creating a game
+  
+  // Check if we should clear player name from navigation params
+  // Use a ref to track if we've already cleared it to prevent multiple clears
+  const hasClearedPlayerNameRef = useRef(false);
+  
+  useEffect(() => {
+    // Check if we should clear player name (only once per navigation with this param)
+    if (route?.params?.clearPlayerName && !hasClearedPlayerNameRef.current) {
+      console.log('[DEBUG HomeScreen] Clearing player name from navigation params');
+      setPlayerName('');
+      hasClearedPlayerNameRef.current = true;
+      // Reset navigation flags for a clean restart
+      setIsNavigating(false);
+      isCreatingGameRef.current = false;
+    } else if (!route?.params?.clearPlayerName) {
+      // Reset the flag when param is not present
+      hasClearedPlayerNameRef.current = false;
+    }
+  }, [route?.params?.clearPlayerName]);
 
   useEffect(() => {
     // Draw animation once, then stay stable
@@ -49,19 +69,19 @@ export default function HomeScreen({ navigation }: any) {
     };
   }, []);
 
-  // Navigate to Lobby when game is created
+  // Reset navigation state when game is reset (game becomes null)
   useEffect(() => {
-    if (game && game.state === 'lobby' && isNavigating) {
-      // Small delay to ensure state is fully set
-      const timer = setTimeout(() => {
-        setIsNavigating(false);
-        navigation.navigate('Lobby');
-      }, 100);
-      return () => clearTimeout(timer);
+    if (!game && !isCreatingGameRef.current) {
+      setIsNavigating(false);
     }
-  }, [game, isNavigating, navigation]);
+  }, [game]);
 
   const handleStart = () => {
+    console.log('[DEBUG HomeScreen] handleStart called');
+    console.log('[DEBUG HomeScreen] Player name:', playerName);
+    console.log('[DEBUG HomeScreen] Is navigating:', isNavigating);
+    console.log('[DEBUG HomeScreen] Current game state:', game?.state);
+    
     if (playerName.trim().length === 0) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
@@ -69,12 +89,33 @@ export default function HomeScreen({ navigation }: any) {
     
     // Prevent multiple rapid clicks
     if (isNavigating) {
+      console.log('[DEBUG HomeScreen] Already navigating, ignoring click');
       return;
     }
 
+    // Mark game creation to prevent reset effects from interfering
+    isCreatingGameRef.current = true;
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    console.log('[DEBUG HomeScreen] About to create game for player:', playerName.trim());
+    // IMPORTANT: Set navigating BEFORE creating game to ensure proper order
     setIsNavigating(true);
-    createGame(playerName.trim());
+    const startNewGame = () => {
+      createGame(playerName.trim());
+      navigation.replace('Lobby');
+      setTimeout(() => {
+        setIsNavigating(false);
+        isCreatingGameRef.current = false;
+      }, 0);
+      console.log('[DEBUG HomeScreen] createGame called, navigating to Lobby');
+    };
+
+    if (game) {
+      resetGame();
+      setTimeout(startNewGame, 50);
+    } else {
+      startNewGame();
+    }
   };
 
   // Simple funny doodle path - a wacky face
@@ -92,111 +133,95 @@ export default function HomeScreen({ navigation }: any) {
           <Text style={styles.title}>QUICK DRAW</Text>
           
           <View style={styles.animationContainer}>
-            <Svg width={300} height={280} style={styles.doodleSvg} viewBox="0 0 300 280">
-              {/* Devilish mischievous face with horns */}
+            <Svg width={400} height={340} style={styles.doodleSvg} viewBox="0 0 400 340">
+              <Defs>
+                <LinearGradient id="skyGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <Stop offset="0%" stopColor="#6366F1" stopOpacity="1" />
+                  <Stop offset="100%" stopColor="#6366F1" stopOpacity="1" />
+                </LinearGradient>
+              </Defs>
               
-              {/* Left horn */}
+              {/* Sky background */}
+              <Rect
+                x="0"
+                y="0"
+                width="400"
+                height="340"
+                fill="url(#skyGradient)"
+              />
+              
+              {/* Traditional cloud shape - ellipse with half-circles on edges */}
+              
+              {/* Main ellipse cloud body - drawn outline */}
               <Path
-                d="M 110 90 L 95 70 L 100 75 L 105 65 L 110 75 L 115 70 L 110 90"
+                d="M 30 190 A 50 60 0 0 1 80 165 A 60 50 0 0 1 130 150 A 55 55 0 0 1 200 140 A 60 60 0 0 1 270 150 A 55 50 0 0 1 320 165 A 50 60 0 0 1 370 190 A 45 70 0 0 1 360 240 A 60 60 0 0 1 320 265 A 55 55 0 0 1 280 270 A 60 60 0 0 1 240 280 A 60 60 0 0 1 200 270 A 60 60 0 0 1 160 270 A 55 55 0 0 1 120 265 A 45 70 0 0 1 30 190 Z"
                 stroke="#FFFFFF"
-                strokeWidth="3"
+                strokeWidth="4"
                 fill="none"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                strokeDasharray="80"
-                strokeDashoffset={Math.max(0, 80 - (drawProgress * 80))}
-                opacity={drawProgress > 0 ? 1 : 0}
-              />
-              
-              {/* Right horn */}
-              <Path
-                d="M 190 90 L 205 70 L 200 75 L 195 65 L 190 75 L 185 70 L 190 90"
-                stroke="#FFFFFF"
-                strokeWidth="3"
-                fill="none"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeDasharray="80"
-                strokeDashoffset={Math.max(0, 80 - (Math.max(0, drawProgress - 0.1) * 80))}
-                opacity={drawProgress > 0.1 ? 1 : 0}
-              />
-              
-              {/* Head circle */}
-              <Path
-                d="M 150 120 Q 110 120 110 160 Q 110 200 150 200 Q 190 200 190 160 Q 190 120 150 120"
-                stroke="#FFFFFF"
-                strokeWidth="3"
-                fill="none"
-                strokeLinecap="round"
-                strokeDasharray="320"
-                strokeDashoffset={Math.max(0, 320 - (Math.max(0, drawProgress - 0.2) * 320))}
+                strokeDasharray="780"
+                strokeDashoffset={Math.max(0, 780 - (Math.max(0, drawProgress - 0.2) * 780))}
                 opacity={drawProgress > 0.2 ? 1 : 0}
               />
               
-              {/* Left eye - mischievous squint */}
+              {/* Left eye - winking (closed eye line) */}
               <Path
-                d="M 130 150 Q 135 145 140 150"
+                d="M 140 200 Q 160 196 175 200"
                 stroke="#FFFFFF"
-                strokeWidth="3"
+                strokeWidth="6"
                 fill="none"
                 strokeLinecap="round"
-                strokeDasharray="20"
-                strokeDashoffset={Math.max(0, 20 - (Math.max(0, drawProgress - 0.55) * 20))}
-                opacity={drawProgress > 0.55 ? 1 : 0}
+                strokeDasharray="35"
+                strokeDashoffset={Math.max(0, 35 - (Math.max(0, drawProgress - 0.7) * 35))}
+                opacity={drawProgress > 0.7 ? 1 : 0}
               />
               
-              {/* Right eye - mischievous squint */}
+              {/* Right eye - happy crescent */}
               <Path
-                d="M 160 150 Q 165 145 170 150"
+                d="M 260 200 Q 240 195 230 200 Q 240 205 260 200"
                 stroke="#FFFFFF"
-                strokeWidth="3"
+                strokeWidth="6"
                 fill="none"
                 strokeLinecap="round"
-                strokeDasharray="20"
-                strokeDashoffset={Math.max(0, 20 - (Math.max(0, drawProgress - 0.6) * 20))}
-                opacity={drawProgress > 0.6 ? 1 : 0}
+                strokeDasharray="45"
+                strokeDashoffset={Math.max(0, 45 - (Math.max(0, drawProgress - 0.75) * 45))}
+                opacity={drawProgress > 0.75 ? 1 : 0}
               />
               
-              {/* Devilish grin - wide mischievous smile */}
+              {/* Big happy smile */}
               <Path
-                d="M 120 175 Q 135 190 150 185 Q 165 190 180 175"
+                d="M 130 230 Q 170 260 200 255 Q 230 260 270 230"
                 stroke="#FFFFFF"
-                strokeWidth="3"
+                strokeWidth="7"
                 fill="none"
                 strokeLinecap="round"
-                strokeDasharray="100"
-                strokeDashoffset={Math.max(0, 100 - (Math.max(0, drawProgress - 0.65) * 100))}
-                opacity={drawProgress > 0.65 ? 1 : 0}
-              />
-              
-              {/* Small teeth/points in grin */}
-              <Path
-                d="M 135 180 L 135 175 M 150 178 L 150 173 M 165 180 L 165 175"
-                stroke="#FFFFFF"
-                strokeWidth="2.5"
-                fill="none"
-                strokeLinecap="round"
-                strokeDasharray="15"
-                strokeDashoffset={Math.max(0, 15 - (Math.max(0, drawProgress - 0.8) * 15))}
+                strokeDasharray="180"
+                strokeDashoffset={Math.max(0, 180 - (Math.max(0, drawProgress - 0.8) * 180))}
                 opacity={drawProgress > 0.8 ? 1 : 0}
               />
               
-              {/* Sparkle in eyes for mischief - appears when complete */}
+              {/* Tongue sticking out */}
+              <Path
+                d="M 200 255 Q 193 275 200 285 Q 207 275 200 255"
+                stroke="#FFFFFF"
+                strokeWidth="6"
+                fill="none"
+                strokeLinecap="round"
+                strokeDasharray="40"
+                strokeDashoffset={Math.max(0, 40 - (Math.max(0, drawProgress - 0.88) * 40))}
+                opacity={drawProgress > 0.88 ? 1 : 0}
+              />
+              
+              {/* Simple sparkle in the open eye when complete */}
               {drawProgress >= 1 && (
-                <>
-                  <Path
-                    d="M 135 148 L 137 150 L 135 152 L 133 150 Z"
-                    stroke="#FFFFFF"
-                    strokeWidth="2"
-                    fill="#FFFFFF"
-                  />
-                  <Path
-                    d="M 165 148 L 167 150 L 165 152 L 163 150 Z"
-                    stroke="#FFFFFF"
-                    strokeWidth="2"
-                    fill="#FFFFFF"
-                  />
-                </>
+                <Path
+                  d="M 255 197 L 250 200 L 255 203"
+                  stroke="#FFFFFF"
+                  strokeWidth="3.5"
+                  fill="none"
+                  strokeLinecap="round"
+                />
               )}
             </Svg>
           </View>
@@ -230,7 +255,7 @@ export default function HomeScreen({ navigation }: any) {
                 navigation.navigate('Tutorial');
               }}
             >
-              <Text style={styles.secondaryButtonText}>📖 Tutorial</Text>
+              <Text style={styles.secondaryButtonText}>Tutorial</Text>
             </TouchableOpacity>
             
             <TouchableOpacity
@@ -278,12 +303,12 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    height: Math.min(250, height * 0.3),
+    height: Math.min(340, height * 0.42),
   },
   doodleSvg: {
-    opacity: 0.95,
-    width: Math.min(280, width * 0.7),
-    height: Math.min(250, height * 0.3),
+    opacity: 1,
+    width: Math.min(380, width * 0.85),
+    height: Math.min(340, height * 0.42),
   },
   inputContainer: {
     width: Math.min(width - 40, 400),

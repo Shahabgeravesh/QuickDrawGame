@@ -71,6 +71,7 @@ interface GameContextType {
   startRound: () => void;
   submitGuess: (playerId: string, guess: string) => void;
   endRound: () => void;
+  finishRoundGuessing: () => void;
   resetGame: () => void;
   gameHistory: GameHistory[];
   deleteHistoryEntry: (id: string) => void;
@@ -152,20 +153,34 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
   const startRound = useCallback(() => {
     setGame((prev) => {
-      if (!prev) return null;
+      if (!prev) {
+        console.log('[DEBUG startRound] No game, returning null');
+        return null;
+      }
       
       // Calculate next round number based on completed rounds
       const completedRounds = prev.rounds?.length || 0;
       const roundNumber = completedRounds + 1;
       
+      console.log('[DEBUG startRound] Attempting to start round:', roundNumber);
+      console.log('[DEBUG startRound] Completed rounds:', completedRounds);
+      console.log('[DEBUG startRound] Rounds per game:', prev.settings.roundsPerGame);
+      
       // Check if we've reached the max rounds
       if (roundNumber > prev.settings.roundsPerGame) {
+        console.log('[DEBUG startRound] Round limit reached! Round:', roundNumber, '> Max:', prev.settings.roundsPerGame);
         return prev; // Don't start a new round if we've exceeded the limit
       }
       
       const drawerIndex = (roundNumber - 1) % prev.players.length;
       const drawer = prev.players[drawerIndex];
       const prompt = getRandomPrompt();
+
+      console.log('[DEBUG startRound] Starting round:', roundNumber);
+      console.log('[DEBUG startRound] Total players:', prev.players.length);
+      console.log('[DEBUG startRound] Drawer index:', drawerIndex);
+      console.log('[DEBUG startRound] Drawer:', drawer.name);
+      console.log('[DEBUG startRound] Rotation: Round', roundNumber, '- Player', drawerIndex + 1, 'of', prev.players.length);
 
       const newRound: GameRound = {
         roundNumber,
@@ -334,9 +349,30 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       });
 
         // Find next guesser after this one submits
+        // Ensure all non-drawers get a chance to guess in order
         const guessers = prev.players.filter(p => p.id !== prev.currentRound!.drawerId);
         const guessedPlayerIds = Array.from(new Set(updatedRound.guesses.map(g => g.playerId)));
-        const nextGuesser = guessers.find(p => !guessedPlayerIds.includes(p.id));
+        
+        // Find current guesser's index in the guessers array
+        const currentIndex = guessers.findIndex(p => p.id === playerId);
+        // Get next guesser in order (wrapping around if needed)
+        let nextGuesser = null;
+        if (currentIndex >= 0) {
+          // Start from next player after current
+          for (let i = 1; i < guessers.length; i++) {
+            const nextIndex = (currentIndex + i) % guessers.length;
+            const candidate = guessers[nextIndex];
+            if (!guessedPlayerIds.includes(candidate.id)) {
+              nextGuesser = candidate;
+              break;
+            }
+          }
+        } else {
+          // Fallback: find first available guesser
+          nextGuesser = guessers.find(p => !guessedPlayerIds.includes(p.id));
+        }
+        
+        console.log('[DEBUG submitGuess] Current guesser:', playerId, 'Next guesser:', nextGuesser?.name || 'none (all guessed)');
 
         // Collect all rewards for the round (guesser + drawer)
         const allRoundRewards = [...rewards];
@@ -344,7 +380,23 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
           allRoundRewards.push(drawerReward);
         }
 
-        return {
+        // Check if this is the last round and game should be finished
+        // Use current round number to determine if it's the last round
+        const isLastRound = prev.currentRound.roundNumber >= prev.settings.roundsPerGame;
+        
+        console.log('[DEBUG submitGuess] Current round number:', prev.currentRound.roundNumber);
+        console.log('[DEBUG submitGuess] Rounds per game:', prev.settings.roundsPerGame);
+        
+        // If correct guess on last round, mark game as finished
+        const newState = isCorrect 
+          ? (isLastRound ? 'finished' as const : 'results')
+          : prev.state;
+
+        console.log('[DEBUG submitGuess] Correct guess:', isCorrect);
+        console.log('[DEBUG submitGuess] Is last round:', isLastRound);
+        console.log('[DEBUG submitGuess] New state:', newState);
+
+        const updatedGameState = {
           ...prev,
           currentRound: {
             ...updatedRound,
@@ -352,14 +404,35 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
           },
           players: updatedPlayers,
           currentPlayerId: isCorrect ? undefined : (nextGuesser?.id || prev.currentPlayerId),
-          state: isCorrect ? 'results' : prev.state,
+          state: newState,
         };
+
+        // If game is finished, save to history
+        if (newState === 'finished') {
+          console.log('[DEBUG submitGuess] Game finished - saving to history');
+          const finishedGame = {
+            ...updatedGameState,
+            currentRound: undefined,
+            rounds: allRounds, // Will be added when endRound is called
+          };
+          
+          saveGameHistory(finishedGame).then(() => {
+            loadGameHistory().then(history => setGameHistory(history));
+          }).catch(console.error);
+        }
+
+        return updatedGameState;
     });
   }, [game]);
 
   const endRound = useCallback(() => {
     setGame((prev) => {
-      if (!prev || !prev.currentRound) return prev;
+      if (!prev || !prev.currentRound) {
+        console.log('[DEBUG endRound] No game or currentRound, returning');
+        return prev;
+      }
+
+      console.log('[DEBUG endRound] Starting - Round:', prev.currentRound.roundNumber, 'Completed rounds:', prev.rounds.length);
 
       // Fast calculation: Count correct guesses once
       const correctCount = prev.currentRound.guesses.filter(g => g.isCorrect).length;
@@ -396,33 +469,29 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       };
 
       const allRounds = [...prev.rounds, updatedRound];
-      const isGameFinished = allRounds.length >= prev.settings.roundsPerGame;
+      const isLastRound = allRounds.length >= prev.settings.roundsPerGame;
+
+      console.log('[DEBUG endRound] Round completed:', updatedRound.roundNumber);
+      console.log('[DEBUG endRound] Total rounds completed:', allRounds.length);
+      console.log('[DEBUG endRound] Rounds per game:', prev.settings.roundsPerGame);
+      console.log('[DEBUG endRound] Is this the last round?', isLastRound);
 
       // Find first guesser for guessing phase (after drawing ends)
+      // Rotate through players so everyone gets a fair turn order
       const guessers = prev.players.filter(p => p.id !== prev.currentRound!.drawerId);
-      const firstGuesser = guessers[0] || null;
+      // Calculate starting guesser index based on round number for fair rotation
+      // This ensures the guess order rotates fairly across rounds
+      const guesserStartIndex = (prev.currentRound!.roundNumber - 1) % Math.max(1, guessers.length);
+      const firstGuesser = guessers[guesserStartIndex] || guessers[0] || null;
+      
+      console.log('[DEBUG endRound] Total guessers (non-drawers):', guessers.length);
+      console.log('[DEBUG endRound] Guesser start index:', guesserStartIndex);
+      console.log('[DEBUG endRound] First guesser:', firstGuesser?.name);
 
-      // If game is finished, save to history and mark as finished
-      if (isGameFinished) {
-        const finishedGame = {
-          ...prev,
-          rounds: allRounds,
-          currentRound: undefined,
-          state: 'finished' as const,
-          players: updatedPlayers,
-          roundRewards: allRewardsWithDrawer,
-        };
-        
-        // Save to history asynchronously
-        saveGameHistory(finishedGame).then(() => {
-          loadGameHistory().then(history => setGameHistory(history));
-        }).catch(console.error);
-        
-        return finishedGame;
-      }
+      console.log('[DEBUG endRound] Transitioning to guessing phase - game will finish after guessing completes');
 
-      // Transition to guessing state - don't start next round yet
-      // The next round will start from ResultsScreen when user clicks "Next Round"
+      // ALWAYS transition to guessing state first, even for the last round
+      // The game will be marked as finished after guessing completes (in submitGuess or ResultsScreen)
       return {
         ...prev,
         rounds: allRounds,
@@ -432,6 +501,53 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         players: updatedPlayers,
         roundRewards: allRewardsWithDrawer,
       };
+    });
+  }, []);
+
+  const finishRoundGuessing = useCallback(() => {
+    // Called when all players have guessed (no correct answer)
+    // Transition to results, and if last round, mark as finished
+    setGame((prev) => {
+      if (!prev || !prev.currentRound) return prev;
+
+      const allRounds = [...prev.rounds];
+      // Use current round number to determine if it's the last round
+      const isLastRound = prev.currentRound.roundNumber >= prev.settings.roundsPerGame;
+
+      console.log('[DEBUG finishRoundGuessing] All players guessed - moving to results');
+      console.log('[DEBUG finishRoundGuessing] Current round number:', prev.currentRound.roundNumber);
+      console.log('[DEBUG finishRoundGuessing] Rounds per game:', prev.settings.roundsPerGame);
+      console.log('[DEBUG finishRoundGuessing] Is last round:', isLastRound);
+
+      // Update the current round in the rounds array with all guesses
+      if (allRounds.length > 0) {
+        allRounds[allRounds.length - 1] = prev.currentRound;
+      }
+
+      const newState = isLastRound ? 'finished' as const : 'results';
+
+      const updatedGameState = {
+        ...prev,
+        rounds: allRounds,
+        state: newState,
+      };
+
+      // If last round, mark as finished and save to history
+      if (isLastRound) {
+        console.log('[DEBUG finishRoundGuessing] Game finished - saving to history');
+        const finishedGame = {
+          ...updatedGameState,
+          currentRound: undefined,
+        };
+        
+        saveGameHistory(finishedGame).then(() => {
+          loadGameHistory().then(history => setGameHistory(history));
+        }).catch(console.error);
+        
+        return finishedGame;
+      }
+
+      return updatedGameState;
     });
   }, []);
 
@@ -461,6 +577,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         startRound,
         submitGuess,
         endRound,
+        finishRoundGuessing,
         resetGame,
         gameHistory,
         deleteHistoryEntry,

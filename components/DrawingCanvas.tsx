@@ -38,7 +38,7 @@ export default function DrawingCanvas({
   const [paths, setPaths] = useState<DrawingPath[]>([]);
   const [currentPath, setCurrentPath] = useState<Point[]>([]);
   const isDrawingRef = useRef(false);
-  
+
   // Use refs to always have current values in callbacks
   const strokeWidthRef = useRef(strokeWidth);
   const colorRef = useRef(color);
@@ -271,17 +271,17 @@ export default function DrawingCanvas({
           {paths
             .filter(path => !path.isEraser)
             .map((path, index) => (
-              <Path
+            <Path
                 key={`draw-path-${index}-${path.points.length}`}
-                d={pathToSvgPath(path.points)}
-                stroke={path.color}
-                strokeWidth={path.strokeWidth}
-                fill="none"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+              d={pathToSvgPath(path.points)}
+              stroke={path.color}
+              strokeWidth={path.strokeWidth}
+              fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
                 strokeMiterlimit={10}
-              />
-            ))}
+            />
+          ))}
           {/* Render current drawing path */}
           {currentPath.length > 0 && !isEraser && (
             <Path

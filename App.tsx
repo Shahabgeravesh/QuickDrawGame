@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { StatusBar } from 'expo-status-bar';
@@ -11,10 +11,16 @@ import GuessingScreen from './screens/GuessingScreen';
 import ResultsScreen from './screens/ResultsScreen';
 import HistoryScreen from './screens/HistoryScreen';
 import TutorialScreen from './screens/TutorialScreen';
+import { adService } from './services/AdService';
 
 const Stack = createStackNavigator();
 
 export default function App() {
+  useEffect(() => {
+    // Initialize ads when app starts
+    adService.initialize();
+  }, []);
+
   return (
     <GameProvider>
       <NavigationContainer>

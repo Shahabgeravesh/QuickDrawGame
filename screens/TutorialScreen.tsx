@@ -46,7 +46,7 @@ export default function TutorialScreen({ navigation }: any) {
             <View style={styles.stepContent}>
               <Text style={styles.stepTitle}>Setup</Text>
               <Text style={styles.stepDescription}>
-                Add players and choose number of rounds (3, 5, 7, or 10)
+                Add players (game is 3 rounds)
               </Text>
             </View>
           </View>

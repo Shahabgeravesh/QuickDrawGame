@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,57 +10,173 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useIsFocused } from '@react-navigation/native';
 import { useGame } from '../context/GameContext';
 import * as Haptics from 'expo-haptics';
 import { getScoreTitle } from '../utils/rewards';
+import { adService } from '../services/AdService';
 
 const { width, height } = Dimensions.get('window');
 
 export default function ResultsScreen({ navigation }: any) {
   const { game, resetGame, startRound } = useGame();
   const [showRewards, setShowRewards] = useState(false);
+  const hasNavigatedAway = useRef(false); // Track if we've already navigated away
+  const navigationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isFocused = useIsFocused();
 
   useEffect(() => {
-    if (!game || !game.currentRound) {
-      navigation.navigate('Home');
-    } else {
-      // Show rewards immediately for faster feedback
-      setShowRewards(true);
+    if (!isFocused) {
+      return;
     }
-  }, [game, navigation]);
+    // Early return if we've already navigated away - don't process anything
+    if (hasNavigatedAway.current) {
+      return;
+    }
+    
+    console.log('[DEBUG ResultsScreen] useEffect triggered');
+    console.log('[DEBUG ResultsScreen] Game state:', game?.state);
+    console.log('[DEBUG ResultsScreen] Has game:', !!game);
+    console.log('[DEBUG ResultsScreen] Has currentRound:', !!game?.currentRound);
+    console.log('[DEBUG ResultsScreen] Rounds completed:', game?.rounds?.length);
+    console.log('[DEBUG ResultsScreen] Rounds per game:', game?.settings?.roundsPerGame);
+    
+    if (!game) {
+      console.log('[DEBUG ResultsScreen] No game - skipping navigation');
+      return;
+    }
+    
+    // If game is in lobby state, navigate to lobby or home (shouldn't be on results screen)
+    if (game.state === 'lobby') {
+      console.log('[DEBUG ResultsScreen] Game in lobby state - skipping navigation');
+      return;
+    }
+    
+    // If game is finished, show final results (don't navigate away)
+    // Finished games don't have currentRound, which is expected
+    if (game.state === 'finished') {
+      console.log('[DEBUG ResultsScreen] Game finished - showing final results');
+      setShowRewards(true);
+      return;
+    }
+    
+    // If no current round and not finished/results, navigate home
+    // (For results state, we should have currentRound)
+    if (!game.currentRound) {
+      console.log('[DEBUG ResultsScreen] No currentRound and not finished - skipping navigation');
+      console.log('[DEBUG ResultsScreen] Game state was:', game.state);
+      return;
+    }
+    
+    console.log('[DEBUG ResultsScreen] Showing rewards for round:', game.currentRound?.roundNumber);
+    // Show rewards immediately for faster feedback
+    setShowRewards(true);
+  }, [game, navigation, isFocused]);
 
   // Watch for round start and navigate when ready
   useEffect(() => {
+    if (!isFocused) {
+      return;
+    }
+    // Don't navigate if game is finished
+    if (game?.state === 'finished') {
+      console.log('[DEBUG ResultsScreen] Game finished - not navigating to Drawing');
+      return;
+    }
+    
     if (game && game.currentRound && game.state === 'drawing') {
+      console.log('[DEBUG ResultsScreen] Navigating to Drawing screen for round:', game.currentRound.roundNumber);
       // Small delay to ensure state is fully updated
       const timer = setTimeout(() => {
         navigation.navigate('Drawing');
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [game?.state, game?.currentRound?.roundNumber, navigation]);
+  }, [game?.state, game?.currentRound?.roundNumber, navigation, isFocused]);
 
-  if (!game || !game.currentRound) {
+  // Reset navigation flag when component mounts (for new games)
+  // IMPORTANT: This hook must be before any early returns to follow React rules of hooks
+  useEffect(() => {
+    // Reset the flag when component mounts with a valid game state
+    if (game && (game.state === 'results' || game.state === 'finished')) {
+      hasNavigatedAway.current = false;
+      console.log('[DEBUG ResultsScreen] Mounted with valid game state, reset navigation flag');
+    }
+  }, []); // Only run on mount
+
+  // Early returns must come AFTER all hooks
+  if (!game) {
+    console.log('[DEBUG ResultsScreen] Render: No game - returning null');
     return null;
   }
+  
+  // If game is in lobby or drawing state, shouldn't be on results screen
+  if (game.state === 'lobby' || game.state === 'drawing') {
+    console.log('[DEBUG ResultsScreen] Render: Invalid state for ResultsScreen - returning null');
+    console.log('[DEBUG ResultsScreen] Render: Game state was:', game.state);
+    return null;
+  }
+  
+  // For finished games, show final results even without currentRound
+  // For in-progress games, we need currentRound
+  if (game.state !== 'finished' && !game.currentRound) {
+    console.log('[DEBUG ResultsScreen] Render: Not finished and no currentRound - returning null');
+    console.log('[DEBUG ResultsScreen] Render: Game state was:', game.state);
+    return null;
+  }
+  
+  console.log('[DEBUG ResultsScreen] Render: Rendering with state:', game.state);
 
-  const handleNextRound = () => {
+  const handleNextRound = async () => {
+    console.log('[DEBUG ResultsScreen] handleNextRound called');
+    console.log('[DEBUG ResultsScreen] Current game state:', game?.state);
+    console.log('[DEBUG ResultsScreen] Current round:', game?.currentRound?.roundNumber);
+    console.log('[DEBUG ResultsScreen] Completed rounds:', game?.rounds?.length);
+    console.log('[DEBUG ResultsScreen] Rounds per game:', game?.settings?.roundsPerGame);
+    
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setShowRewards(false);
+    
     if (game.state === 'finished') {
+      console.log('[DEBUG ResultsScreen] Game is finished - resetting and going to Home');
+      hasNavigatedAway.current = true; // Mark as navigated to prevent loops
       resetGame();
-      navigation.navigate('Home');
+      // Use replace to remove this screen from the stack
+      navigation.replace('Home');
     } else {
+      console.log('[DEBUG ResultsScreen] Starting next round...');
+      // Show ad between rounds (except first round)
+      if (game.currentRound && game.currentRound.roundNumber > 0) {
+        try {
+          await adService.showInterstitialAd();
+        } catch (error) {
+          console.error('Error showing ad:', error);
+          // Continue even if ad fails
+        }
+      }
+      
       // Start the next round - navigation will happen via useEffect when state updates
+      console.log('[DEBUG ResultsScreen] Calling startRound()');
       startRound();
     }
   };
 
   const handlePlayAgain = () => {
+    console.log('[DEBUG ResultsScreen] ========== handlePlayAgain CALLED ==========');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setShowRewards(false);
+    hasNavigatedAway.current = true; // Mark as navigated to prevent loops
+    console.log('[DEBUG ResultsScreen] Resetting game before navigating...');
     resetGame();
-    navigation.navigate('Home');
+    // Wait a moment to ensure game is reset before navigating
+    setTimeout(() => {
+      console.log('[DEBUG ResultsScreen] Navigating to Home with clearPlayerName param');
+      // Reset stack to fully remove ResultsScreen
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Home', params: { clearPlayerName: true } }],
+      });
+    }, 50);
   };
 
   const handleExit = () => {
@@ -85,11 +201,34 @@ export default function ResultsScreen({ navigation }: any) {
     );
   };
 
+  // For finished games, use the last round from rounds array
+  // For in-progress games, use currentRound
+  const displayRound = game.state === 'finished' && game.rounds && game.rounds.length > 0
+    ? game.rounds[game.rounds.length - 1]
+    : game.currentRound;
+  
+  if (!displayRound) {
+    console.log('[DEBUG ResultsScreen] No displayRound available - returning null');
+    console.log('[DEBUG ResultsScreen] Game state:', game.state);
+    console.log('[DEBUG ResultsScreen] Rounds array length:', game.rounds?.length);
+    console.log('[DEBUG ResultsScreen] Has currentRound:', !!game.currentRound);
+    return null;
+  }
+  
+  console.log('[DEBUG ResultsScreen] Using displayRound:', displayRound.roundNumber);
+
   const sortedPlayers = [...game.players].sort((a, b) => b.score - a.score);
-  const correctGuesses = game.currentRound.guesses.filter((g) => g.isCorrect);
-  const drawer = game.players.find((p) => p.id === game.currentRound!.drawerId);
-  const rewards = game.currentRound.rewards || [];
+  const correctGuesses = (displayRound.guesses || []).filter((g) => g.isCorrect);
+  const drawer = game.players.find((p) => p.id === displayRound.drawerId);
+  const rewards = displayRound.rewards || [];
   const hasGuesses = correctGuesses.length > 0;
+  
+  console.log('[DEBUG ResultsScreen] Render data:', {
+    displayRoundNumber: displayRound.roundNumber,
+    guessesCount: displayRound.guesses?.length || 0,
+    hasDrawer: !!drawer,
+    rewardsCount: rewards.length
+  });
   
   const getResultTitle = () => {
     if (hasGuesses) {
@@ -126,20 +265,28 @@ export default function ResultsScreen({ navigation }: any) {
         <View style={styles.headerTop}>
           <View style={styles.roundProgressContainer}>
             <Text style={styles.roundProgressText}>
-              Round {game.currentRound.roundNumber} of {game.settings.roundsPerGame}
+              {game.state === 'finished' 
+                ? `Game Finished - ${game.settings.roundsPerGame} Rounds`
+                : `Round ${displayRound.roundNumber} of ${game.settings.roundsPerGame}`}
             </Text>
           </View>
           <TouchableOpacity style={styles.exitButton} onPress={handleExit}>
             <Text style={styles.exitButtonText}>Exit</Text>
           </TouchableOpacity>
         </View>
-        <Text style={styles.title}>{getResultTitle()}</Text>
-        <Text style={styles.message}>{getResultMessage()}</Text>
+        {game.state === 'finished' ? (
+          <Text style={styles.title}>{sortedPlayers[0]?.name.toUpperCase() || 'WINNER'} WIN</Text>
+        ) : (
+          <>
+            <Text style={styles.title}>{getResultTitle()}</Text>
+            <Text style={styles.message}>{getResultMessage()}</Text>
+          </>
+        )}
         <View style={styles.answerContainer}>
           <Text style={styles.answerLabel}>THE WORD WAS:</Text>
-          <Text style={styles.answerWord}>{game.currentRound.prompt.word.toUpperCase()}</Text>
+          <Text style={styles.answerWord}>{displayRound.prompt.word.toUpperCase()}</Text>
           <Text style={styles.answerCategory}>
-            Category: {game.currentRound.prompt.category}
+            Category: {displayRound.prompt.category}
           </Text>
         </View>
         <Text style={styles.drawerText}>Drawn by: {drawer?.name} (we're not judging... much)</Text>

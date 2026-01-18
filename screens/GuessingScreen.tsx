@@ -18,7 +18,7 @@ import * as Haptics from 'expo-haptics';
 const { width, height } = Dimensions.get('window');
 
 export default function GuessingScreen({ navigation }: any) {
-  const { game, submitGuess, resetGame } = useGame();
+  const { game, submitGuess, resetGame, finishRoundGuessing } = useGame();
   const [guess, setGuess] = useState('');
   const [timeLeft, setTimeLeft] = useState(30);
   const [showWaitingAnimation, setShowWaitingAnimation] = useState(false);
@@ -26,16 +26,22 @@ export default function GuessingScreen({ navigation }: any) {
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    if (!game || !game.currentRound) {
+    if (!game) {
       navigation.navigate('Home');
       return;
     }
 
-    // Navigate to results if round is complete
+    // Navigate to results if round is complete or game is finished
+    // Check this BEFORE checking currentRound, since finished games don't have currentRound
     if (game.state === 'results' || game.state === 'finished') {
-      setTimeout(() => {
-        navigation.navigate('Results');
-      }, 1000);
+      // Navigate immediately to Results (no delay needed)
+      navigation.navigate('Results');
+      return;
+    }
+
+    // If no currentRound and not finished/results, navigate home
+    if (!game.currentRound) {
+      navigation.navigate('Home');
       return;
     }
 
@@ -57,6 +63,25 @@ export default function GuessingScreen({ navigation }: any) {
 
     return () => clearInterval(timer);
   }, [game, navigation]);
+
+  // Handle case when all players have guessed but no one got it right
+  useEffect(() => {
+    if (!game || !game.currentRound || game.state !== 'guessing') return;
+
+    const guessers = game.players.filter((p) => p.id !== game.currentRound!.drawerId);
+    const guessedPlayerIds = Array.from(new Set(game.currentRound.guesses.map((g) => g.playerId)));
+    const allGuessed = guessers.every(guesser => guessedPlayerIds.includes(guesser.id));
+    const correctGuess = game.currentRound.guesses.find((g) => g.isCorrect);
+
+    // If all players guessed but no correct answer, transition to results
+    if (allGuessed && !correctGuess) {
+      console.log('[DEBUG GuessingScreen] All players guessed, no correct answer - finishing round');
+      const timer = setTimeout(() => {
+        finishRoundGuessing();
+      }, 2000); // Give time to see the waiting animation
+      return () => clearTimeout(timer);
+    }
+  }, [game?.currentRound?.guesses, game?.state, finishRoundGuessing]);
 
   // Animated waiting screen effect
   useEffect(() => {

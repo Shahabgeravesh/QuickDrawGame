@@ -6,6 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -28,6 +29,32 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": []
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "infoPlist": {
+              "GADApplicationIdentifier": "ca-app-pub-5925476125839963~2819423738"
+            }
+          },
+          "android": {
+            "manifest": {
+              "applicationMetaData": [
+                {
+                  "name": "com.google.android.gms.ads.APPLICATION_ID",
+                  "value": "ca-app-pub-5925476125839963~2819423738"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "your-project-id"
+      }
+    }
   }
 }
