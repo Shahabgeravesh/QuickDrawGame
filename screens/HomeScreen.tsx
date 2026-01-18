@@ -3,8 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  TextInput,
-  TouchableOpacity,
   Dimensions,
   Animated,
   Keyboard,
@@ -15,6 +13,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path, Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import { useGame } from '../context/GameContext';
 import * as Haptics from 'expo-haptics';
+import Button from '../components/ui/Button';
+import TextField from '../components/ui/TextField';
+import { colors, spacing, typography, radius } from '../theme';
+import PreviewCanvas from '../components/preview/PreviewCanvas';
 
 const { width, height } = Dimensions.get('window');
 
@@ -101,14 +103,14 @@ export default function HomeScreen({ navigation, route }: any) {
     // IMPORTANT: Set navigating BEFORE creating game to ensure proper order
     setIsNavigating(true);
     const startNewGame = () => {
-      createGame(playerName.trim());
+    createGame(playerName.trim());
       navigation.replace('Lobby');
       setTimeout(() => {
         setIsNavigating(false);
         isCreatingGameRef.current = false;
       }, 0);
       console.log('[DEBUG HomeScreen] createGame called, navigating to Lobby');
-    };
+  };
 
     if (game) {
       resetGame();
@@ -121,16 +123,16 @@ export default function HomeScreen({ navigation, route }: any) {
   // Simple funny doodle path - a wacky face
   const doodlePath = 'M 100 150 Q 120 130 140 150 Q 120 170 100 150 M 160 150 Q 180 130 200 150 Q 180 170 160 150 M 80 180 Q 100 200 120 190 Q 140 200 160 190 Q 180 200 200 190 Q 220 200 240 180 M 100 80 Q 120 70 140 60 Q 160 50 180 60 Q 200 70 220 80';
 
-  return (
+  const content = (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <ScrollView 
+        <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.content}>
-          <Text style={styles.title}>QUICK DRAW</Text>
+            <Text style={styles.title}>Quick Draw</Text>
           
           <View style={styles.animationContainer}>
             <Svg width={400} height={340} style={styles.doodleSvg} viewBox="0 0 400 340">
@@ -226,59 +228,81 @@ export default function HomeScreen({ navigation, route }: any) {
             </Svg>
           </View>
 
-          <View style={styles.inputContainer}>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter your name"
-              placeholderTextColor="#999"
-              value={playerName}
-              onChangeText={setPlayerName}
-              maxLength={20}
-              autoCapitalize="words"
-              autoCorrect={false}
-            />
-          </View>
+        <View style={styles.inputContainer}>
+            <TextField
+            placeholder="Enter your name"
+            value={playerName}
+            onChangeText={setPlayerName}
+            maxLength={20}
+            autoCapitalize="words"
+            autoCorrect={false}
+          />
+        </View>
 
-          <TouchableOpacity
-            style={[styles.button, !playerName.trim() && styles.buttonDisabled]}
-            onPress={handleStart}
-            disabled={!playerName.trim()}
-          >
-            <Text style={styles.buttonText}>START</Text>
-          </TouchableOpacity>
+          <Button
+            title="Start Game"
+          onPress={handleStart}
+          disabled={!playerName.trim()}
+            style={styles.primaryButton}
+            textStyle={{ color: colors.brand }}
+          />
 
           <View style={styles.bottomButtons}>
-            <TouchableOpacity
-              style={styles.secondaryButton}
+            <Button
+              title="Tutorial"
+              variant="ghost"
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 navigation.navigate('Tutorial');
               }}
-            >
-              <Text style={styles.secondaryButtonText}>Tutorial</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
               style={styles.secondaryButton}
+              textStyle={styles.secondaryButtonText}
+            />
+            
+            <Button
+              title="History"
+              variant="ghost"
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 navigation.navigate('History');
               }}
-            >
-              <Text style={styles.secondaryButtonText}>History</Text>
-            </TouchableOpacity>
+              style={styles.secondaryButton}
+              textStyle={styles.secondaryButtonText}
+            />
           </View>
+
+          {__DEV__ && (
+            <View style={styles.devButtons}>
+              <Button
+                title="Preview Screenshots"
+                variant="ghost"
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  navigation.navigate('PreviewScreens');
+                }}
+                style={styles.previewButton}
+                textStyle={styles.previewButtonText}
+              />
+            </View>
+          )}
+
           </View>
         </ScrollView>
       </TouchableWithoutFeedback>
     </SafeAreaView>
   );
+
+  if (route?.params?.previewMeta) {
+    return <PreviewCanvas meta={route.params.previewMeta}>{content}</PreviewCanvas>;
+  }
+
+  return content;
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#6366F1',
+    backgroundColor: colors.brand,
   },
   scrollContent: {
     flexGrow: 1,
@@ -288,19 +312,19 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
-    paddingTop: Math.max(40, height * 0.05),
-    paddingBottom: Math.max(20, height * 0.05),
+    padding: spacing.xxl,
+    paddingTop: Math.max(spacing.huge, height * 0.05),
+    paddingBottom: Math.max(spacing.xxl, height * 0.05),
   },
   title: {
-    fontSize: Math.min(48, width * 0.12),
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 16,
+    ...typography.title,
+    color: colors.white,
+    fontSize: Math.min(40, width * 0.1),
+    marginBottom: spacing.lg,
     textAlign: 'center',
   },
   animationContainer: {
-    marginBottom: 24,
+    marginBottom: spacing.xxl,
     alignItems: 'center',
     justifyContent: 'center',
     height: Math.min(340, height * 0.42),
@@ -311,57 +335,39 @@ const styles = StyleSheet.create({
     height: Math.min(340, height * 0.42),
   },
   inputContainer: {
-    width: Math.min(width - 40, 400),
-    marginBottom: 16,
+    width: Math.min(width - spacing.xxxl, 420),
+    marginBottom: spacing.lg,
   },
-  input: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 18,
-    color: '#1F2937',
-    textAlign: 'center',
-  },
-  button: {
-    backgroundColor: '#10B981',
-    borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 48,
-    minWidth: 200,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  buttonDisabled: {
-    backgroundColor: '#9CA3AF',
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: 'bold',
+  primaryButton: {
+    width: Math.min(width - spacing.xxxl, 420),
+    backgroundColor: colors.white,
+    borderRadius: radius.lg,
   },
   bottomButtons: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 20,
+    gap: spacing.lg,
+    marginTop: spacing.xl,
+  },
+  devButtons: {
+    marginTop: spacing.md,
   },
   secondaryButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-    backgroundColor: 'transparent',
-    minWidth: 120,
-    alignItems: 'center',
+    minWidth: 140,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.white,
   },
   secondaryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
+    color: colors.white,
+    fontWeight: '600',
+  },
+  previewButton: {
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.white,
+  },
+  previewButtonText: {
+    color: colors.white,
     fontWeight: '600',
   },
 });

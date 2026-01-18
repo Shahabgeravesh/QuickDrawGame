@@ -6,23 +6,39 @@ import {
   FlatList,
   TouchableOpacity,
   Dimensions,
-  ScrollView,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { loadGameHistory, deleteGameHistory, clearAllGameHistory } from '../utils/storage';
 import type { GameHistory } from '../types/game';
 import * as Haptics from 'expo-haptics';
+import Header from '../components/ui/Header';
+import Card from '../components/ui/Card';
+import Button from '../components/ui/Button';
+import { colors, spacing, typography, radius, shadows } from '../theme';
+import PreviewCanvas from '../components/preview/PreviewCanvas';
 
 const { width, height } = Dimensions.get('window');
 
-export default function HistoryScreen({ navigation }: any) {
+export default function HistoryScreen({ navigation, route }: any) {
   const [history, setHistory] = useState<GameHistory[]>([]);
   const [loading, setLoading] = useState(true);
+  const previewHistory = route?.params?.previewHistory as GameHistory[] | undefined;
+  const isPreview = !!previewHistory;
+
+  const handleBack = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    navigation.goBack();
+  };
 
   useEffect(() => {
+    if (previewHistory) {
+      setHistory(previewHistory);
+      setLoading(false);
+      return;
+    }
     loadHistory();
-  }, []);
+  }, [previewHistory]);
 
   const loadHistory = async () => {
     setLoading(true);
@@ -85,30 +101,26 @@ export default function HistoryScreen({ navigation }: any) {
   };
 
   if (loading) {
-    return (
+    const loadingContent = (
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Text style={styles.backButtonText}>← Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.title}>GAME HISTORY</Text>
-        </View>
+        <Header title="Game History" onBack={handleBack} />
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Loading...</Text>
         </View>
       </SafeAreaView>
     );
+
+    if (route?.params?.previewMeta) {
+      return <PreviewCanvas meta={route.params.previewMeta}>{loadingContent}</PreviewCanvas>;
+    }
+
+    return loadingContent;
   }
 
   if (history.length === 0) {
-    return (
+    const emptyContent = (
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Text style={styles.backButtonText}>← Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.title}>GAME HISTORY</Text>
-        </View>
+        <Header title="Game History" onBack={handleBack} />
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyTitle}>NO HISTORY YET</Text>
           <Text style={styles.emptyText}>
@@ -117,19 +129,29 @@ export default function HistoryScreen({ navigation }: any) {
         </View>
       </SafeAreaView>
     );
+
+    if (route?.params?.previewMeta) {
+      return <PreviewCanvas meta={route.params.previewMeta}>{emptyContent}</PreviewCanvas>;
+    }
+
+    return emptyContent;
   }
 
-  return (
+  const mainContent = (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backButtonText}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>GAME HISTORY</Text>
-        <TouchableOpacity onPress={handleClearAll} style={styles.clearButton}>
-          <Text style={styles.clearButtonText}>Clear All</Text>
-        </TouchableOpacity>
-      </View>
+      <Header
+        title="Game History"
+        onBack={handleBack}
+        rightAction={!isPreview ? (
+          <Button
+            title="Clear All"
+            variant="ghost"
+            onPress={handleClearAll}
+            style={styles.clearButton}
+            textStyle={styles.clearButtonText}
+          />
+        ) : null}
+      />
 
       <FlatList
         data={history}
@@ -140,18 +162,20 @@ export default function HistoryScreen({ navigation }: any) {
           const sortedPlayers = [...item.players].sort((a, b) => b.score - a.score);
 
           return (
-            <View style={styles.historyCard}>
+            <Card style={styles.historyCard}>
               <View style={styles.cardHeader}>
                 <View style={styles.cardHeaderLeft}>
                   <Text style={styles.dateText}>{formatDate(item.completedAt)}</Text>
                   <Text style={styles.roundsText}>{item.totalRounds} rounds</Text>
                 </View>
-                <TouchableOpacity
-                  onPress={() => handleDelete(item.id)}
-                  style={styles.deleteButton}
-                >
-                  <Text style={styles.deleteButtonText}>×</Text>
-                </TouchableOpacity>
+                {!isPreview ? (
+                  <TouchableOpacity
+                    onPress={() => handleDelete(item.id)}
+                    style={styles.deleteButton}
+                  >
+                    <Text style={styles.deleteButtonText}>×</Text>
+                  </TouchableOpacity>
+                ) : null}
               </View>
 
               {winner && (
@@ -179,49 +203,32 @@ export default function HistoryScreen({ navigation }: any) {
                   </View>
                 ))}
               </View>
-            </View>
+            </Card>
           );
         }}
       />
-      </SafeAreaView>
-    );
+    </SafeAreaView>
+  );
+
+  if (route?.params?.previewMeta) {
+    return <PreviewCanvas meta={route.params.previewMeta}>{mainContent}</PreviewCanvas>;
+  }
+
+  return mainContent;
   }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#6366F1',
-    paddingTop: 60,
-    paddingBottom: 20,
-    paddingHorizontal: 16,
-  },
-  backButton: {
-    padding: 8,
-  },
-  backButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    flex: 1,
-    textAlign: 'center',
+    backgroundColor: colors.background,
   },
   clearButton: {
-    padding: 8,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
   },
   clearButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
+    color: colors.brand,
+    fontSize: 13,
     fontWeight: '600',
   },
   loadingContainer: {
@@ -230,67 +237,60 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    fontSize: 18,
-    color: '#6B7280',
+    fontSize: 16,
+    color: colors.textSecondary,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: spacing.xxxl,
   },
   emptyTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 12,
+    ...typography.title,
+    fontSize: 22,
+    color: colors.brand,
+    marginBottom: spacing.sm,
   },
   emptyText: {
     fontSize: 16,
-    color: '#6B7280',
+    color: colors.textSecondary,
     textAlign: 'center',
   },
   listContent: {
-    padding: 16,
+    padding: spacing.xxl,
+    paddingBottom: spacing.xxxl,
   },
   historyCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    marginBottom: spacing.lg,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
-    paddingBottom: 12,
+    marginBottom: spacing.lg,
+    paddingBottom: spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
   },
   cardHeaderLeft: {
     flex: 1,
   },
   dateText: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 4,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
   },
   roundsText: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.textSecondary,
   },
   deleteButton: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#EF4444',
+    backgroundColor: colors.danger,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -304,17 +304,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFBEB',
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 12,
-    borderWidth: 2,
+    padding: spacing.lg,
+    borderRadius: radius.md,
+    marginBottom: spacing.lg,
+    borderWidth: 1,
     borderColor: '#FCD34D',
   },
   winnerLabel: {
     fontSize: 14,
     fontWeight: '600',
     color: '#92400E',
-    marginRight: 8,
+    marginRight: spacing.sm,
   },
   winnerName: {
     fontSize: 18,
@@ -333,8 +333,8 @@ const styles = StyleSheet.create({
   playersLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6B7280',
-    marginBottom: 8,
+    color: colors.textSecondary,
+    marginBottom: spacing.sm,
   },
   playerRow: {
     flexDirection: 'row',
@@ -343,14 +343,14 @@ const styles = StyleSheet.create({
   },
   playerRank: {
     fontSize: 14,
-    fontWeight: 'bold',
-    color: '#6B7280',
+    fontWeight: '700',
+    color: colors.textSecondary,
     width: 40,
   },
   playerName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.textPrimary,
     flex: 1,
   },
   playerScore: {
@@ -361,7 +361,7 @@ const styles = StyleSheet.create({
   },
   playerStats: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.textSecondary,
   },
 });
 

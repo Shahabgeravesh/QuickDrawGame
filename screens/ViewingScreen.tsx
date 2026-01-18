@@ -8,6 +8,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useGame } from '../context/GameContext';
 import DrawingCanvas from '../components/DrawingCanvas';
+import { colors, spacing, typography, radius } from '../theme';
 
 const { width, height } = Dimensions.get('window');
 
@@ -81,18 +82,18 @@ export default function ViewingScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 12,
-    paddingBottom: 12,
-    paddingHorizontal: 16,
-    backgroundColor: '#FFFFFF',
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.lg,
+    paddingHorizontal: spacing.xxl,
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
     minHeight: 60,
   },
   infoContainer: {
@@ -102,19 +103,19 @@ const styles = StyleSheet.create({
   viewerLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#6366F1',
-    marginBottom: 4,
+    color: colors.brand,
+    marginBottom: spacing.xs,
   },
   hintText: {
     fontSize: 13,
-    color: '#6B7280',
+    color: colors.textSecondary,
     fontStyle: 'italic',
   },
   timerContainer: {
-    backgroundColor: '#EF4444',
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
+    backgroundColor: colors.danger,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
     minWidth: 60,
     alignItems: 'center',
     justifyContent: 'center',
@@ -126,26 +127,24 @@ const styles = StyleSheet.create({
   },
   canvasContainer: {
     flex: 1,
-    padding: 12,
+    padding: spacing.lg,
     minHeight: 200,
   },
   instructionsContainer: {
-    backgroundColor: '#FFFFFF',
-    padding: 16,
+    backgroundColor: colors.surface,
+    padding: spacing.xxl,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: colors.border,
     alignItems: 'center',
   },
   instructionText: {
-    fontSize: 16,
+    ...typography.body,
     fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 4,
+    marginBottom: spacing.xs,
     textAlign: 'center',
   },
   instructionSubtext: {
-    fontSize: 14,
-    color: '#6B7280',
+    ...typography.caption,
     textAlign: 'center',
   },
 });

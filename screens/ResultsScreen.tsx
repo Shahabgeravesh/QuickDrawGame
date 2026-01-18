@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   FlatList,
   Dimensions,
   ScrollView,
@@ -14,11 +13,14 @@ import { useIsFocused } from '@react-navigation/native';
 import { useGame } from '../context/GameContext';
 import * as Haptics from 'expo-haptics';
 import { getScoreTitle } from '../utils/rewards';
-import { adService } from '../services/AdService';
+import Button from '../components/ui/Button';
+import Card from '../components/ui/Card';
+import { colors, spacing, typography, radius, shadows } from '../theme';
+import PreviewCanvas from '../components/preview/PreviewCanvas';
 
 const { width, height } = Dimensions.get('window');
 
-export default function ResultsScreen({ navigation }: any) {
+export default function ResultsScreen({ navigation, route }: any) {
   const { game, resetGame, startRound } = useGame();
   const [showRewards, setShowRewards] = useState(false);
   const hasNavigatedAway = useRef(false); // Track if we've already navigated away
@@ -124,7 +126,7 @@ export default function ResultsScreen({ navigation }: any) {
     console.log('[DEBUG ResultsScreen] Render: Game state was:', game.state);
     return null;
   }
-  
+
   console.log('[DEBUG ResultsScreen] Render: Rendering with state:', game.state);
 
   const handleNextRound = async () => {
@@ -148,7 +150,6 @@ export default function ResultsScreen({ navigation }: any) {
       // Show ad between rounds (except first round)
       if (game.currentRound && game.currentRound.roundNumber > 0) {
         try {
-          await adService.showInterstitialAd();
         } catch (error) {
           console.error('Error showing ad:', error);
           // Continue even if ad fails
@@ -192,9 +193,9 @@ export default function ResultsScreen({ navigation }: any) {
           text: 'Exit',
           style: 'destructive',
           onPress: () => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            resetGame();
-            navigation.navigate('Home');
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    resetGame();
+    navigation.navigate('Home');
           },
         },
       ]
@@ -258,7 +259,7 @@ export default function ResultsScreen({ navigation }: any) {
     return 'Nobody got it. That drawing must have been... abstract. Very abstract.';
   };
 
-  return (
+  const content = (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
@@ -268,11 +269,15 @@ export default function ResultsScreen({ navigation }: any) {
               {game.state === 'finished' 
                 ? `Game Finished - ${game.settings.roundsPerGame} Rounds`
                 : `Round ${displayRound.roundNumber} of ${game.settings.roundsPerGame}`}
-            </Text>
+        </Text>
           </View>
-          <TouchableOpacity style={styles.exitButton} onPress={handleExit}>
-            <Text style={styles.exitButtonText}>Exit</Text>
-          </TouchableOpacity>
+          <Button
+            title="Exit"
+            variant="ghost"
+            onPress={handleExit}
+            style={styles.exitButton}
+            textStyle={styles.exitButtonText}
+          />
         </View>
         {game.state === 'finished' ? (
           <Text style={styles.title}>{sortedPlayers[0]?.name.toUpperCase() || 'WINNER'} WIN</Text>
@@ -287,7 +292,7 @@ export default function ResultsScreen({ navigation }: any) {
           <Text style={styles.answerWord}>{displayRound.prompt.word.toUpperCase()}</Text>
           <Text style={styles.answerCategory}>
             Category: {displayRound.prompt.category}
-          </Text>
+        </Text>
         </View>
         <Text style={styles.drawerText}>Drawn by: {drawer?.name} (we're not judging... much)</Text>
       </View>
@@ -296,11 +301,11 @@ export default function ResultsScreen({ navigation }: any) {
         <View style={styles.rewardsContainer}>
           <Text style={styles.rewardsTitle}>ACHIEVEMENTS UNLOCKED</Text>
           {rewards.map((reward, index) => (
-            <View key={index} style={styles.rewardCard}>
+            <Card key={index} style={styles.rewardCard}>
               <Text style={styles.rewardTitle}>{reward.title}</Text>
               <Text style={styles.rewardMessage}>{reward.message}</Text>
               <Text style={styles.rewardPoints}>+{reward.points} points</Text>
-            </View>
+            </Card>
           ))}
         </View>
       )}
@@ -312,7 +317,7 @@ export default function ResultsScreen({ navigation }: any) {
           const isWinner = index === 0 && sortedPlayers.length > 1;
           
           return (
-            <View 
+            <Card 
               key={player.id} 
               style={[
                 styles.scoreCard,
@@ -345,40 +350,50 @@ export default function ResultsScreen({ navigation }: any) {
                   </View>
                 )}
               </View>
-            </View>
+            </Card>
           );
         })}
       </View>
 
       <View style={styles.actionsContainer}>
         {game.state === 'finished' ? (
-          <TouchableOpacity style={styles.playAgainButton} onPress={handlePlayAgain}>
-            <Text style={styles.playAgainButtonText}>PLAY AGAIN?</Text>
-          </TouchableOpacity>
+          <Button
+            title="Play Again"
+            onPress={handlePlayAgain}
+            style={styles.playAgainButton}
+          />
         ) : (
-          <TouchableOpacity style={styles.nextRoundButton} onPress={handleNextRound}>
-            <Text style={styles.nextRoundButtonText}>NEXT ROUND</Text>
-          </TouchableOpacity>
+          <Button
+            title="Next Round"
+            onPress={handleNextRound}
+            style={styles.nextRoundButton}
+          />
         )}
       </View>
       </ScrollView>
     </SafeAreaView>
   );
+
+  if (route?.params?.previewMeta) {
+    return <PreviewCanvas meta={route.params.previewMeta}>{content}</PreviewCanvas>;
+  }
+
+  return content;
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.background,
   },
   scrollContent: {
     flexGrow: 1,
   },
   header: {
-    backgroundColor: '#FFFFFF',
-    padding: 24,
+    backgroundColor: colors.surface,
+    padding: spacing.xxxl,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
   },
   headerTop: {
     flexDirection: 'row',
@@ -388,30 +403,30 @@ const styles = StyleSheet.create({
   },
   roundProgressContainer: {
     flex: 1,
-    paddingVertical: 6,
-    paddingHorizontal: 16,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 16,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.background,
+    borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
   },
   roundProgressText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6366F1',
+    color: colors.textSecondary,
     textAlign: 'center',
   },
   title: {
     fontSize: 32,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 8,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
     textAlign: 'center',
   },
   message: {
     fontSize: 16,
-    color: '#6B7280',
-    marginBottom: 16,
+    color: colors.textSecondary,
+    marginBottom: spacing.lg,
     textAlign: 'center',
   },
   answerContainer: {
@@ -420,47 +435,46 @@ const styles = StyleSheet.create({
   },
   answerLabel: {
     fontSize: 16,
-    color: '#6B7280',
-    marginBottom: 4,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
   },
   answerWord: {
     fontSize: 28,
-    fontWeight: 'bold',
-    color: '#6366F1',
-    marginTop: 4,
+    fontWeight: '700',
+    color: colors.brand,
+    marginTop: spacing.xs,
   },
   answerCategory: {
     fontSize: 14,
-    color: '#9CA3AF',
-    marginTop: 4,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
     fontStyle: 'italic',
   },
   drawerText: {
     fontSize: 14,
-    color: '#9CA3AF',
-    marginTop: 8,
+    color: colors.textMuted,
+    marginTop: spacing.sm,
     fontStyle: 'italic',
   },
   rewardsContainer: {
-    padding: 16,
+    padding: spacing.xxl,
     backgroundColor: '#FFFBEB',
-    margin: 16,
-    borderRadius: 12,
-    borderWidth: 2,
+    margin: spacing.xxl,
+    borderRadius: radius.lg,
+    borderWidth: 1,
     borderColor: '#FCD34D',
   },
   rewardsTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: '#92400E',
-    marginBottom: 12,
+    marginBottom: spacing.lg,
     textAlign: 'center',
   },
   rewardCard: {
-    backgroundColor: '#FFFFFF',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
+    padding: spacing.lg,
+    borderRadius: radius.md,
+    marginBottom: spacing.sm,
     borderLeftWidth: 4,
     borderLeftColor: '#F59E0B',
   },
@@ -486,27 +500,20 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   scoresContainer: {
-    padding: 16,
+    padding: spacing.xxl,
   },
   scoresTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 16,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: spacing.xxl,
     textAlign: 'center',
   },
   scoreCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
   },
   winnerCard: {
     borderWidth: 4,
@@ -560,63 +567,44 @@ const styles = StyleSheet.create({
   achievementsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   achievementBadge: {
-    backgroundColor: '#EEF2FF',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    marginRight: 6,
-    marginBottom: 4,
+    backgroundColor: colors.surfaceAlt,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.md,
+    marginRight: spacing.sm,
+    marginBottom: spacing.xs,
     borderWidth: 1,
-    borderColor: '#6366F1',
+    borderColor: colors.brand,
   },
   achievementText: {
     fontSize: 10,
-    color: '#6366F1',
+    color: colors.brand,
     fontWeight: '600',
   },
   actionsContainer: {
-    backgroundColor: '#FFFFFF',
-    padding: 16,
+    backgroundColor: colors.surface,
+    padding: spacing.xxl,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: colors.border,
   },
   nextRoundButton: {
-    backgroundColor: '#6366F1',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  nextRoundButtonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: 'bold',
+    backgroundColor: colors.brand,
   },
   playAgainButton: {
-    backgroundColor: '#10B981',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  playAgainButtonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: 'bold',
+    backgroundColor: colors.accent,
   },
   exitButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: '#F3F4F6',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
   },
   exitButtonText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#6B7280',
+    color: colors.textSecondary,
   },
 });
 

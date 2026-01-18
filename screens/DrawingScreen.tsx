@@ -11,10 +11,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useGame } from '../context/GameContext';
 import DrawingCanvas from '../components/DrawingCanvas';
 import * as Haptics from 'expo-haptics';
+import { colors, spacing, typography, radius, shadows } from '../theme';
+import PreviewCanvas from '../components/preview/PreviewCanvas';
+import PreviewSketch from '../components/preview/PreviewSketch';
 
 const { width, height } = Dimensions.get('window');
 
-export default function DrawingScreen({ navigation }: any) {
+export default function DrawingScreen({ navigation, route }: any) {
   const { game, endRound, resetGame } = useGame();
   const [timeLeft, setTimeLeft] = useState(60);
   const [clearTrigger, setClearTrigger] = useState(0);
@@ -26,7 +29,13 @@ export default function DrawingScreen({ navigation }: any) {
   const selectedColor = '#000000';
   const strokeWidth = 4;
 
+  const isPreview = route?.params?.previewMode === true;
+
   useEffect(() => {
+    if (isPreview) {
+      setTimeLeft(45);
+      return;
+    }
     if (!game || !game.currentRound) {
       navigation.navigate('Home');
       return;
@@ -47,10 +56,13 @@ export default function DrawingScreen({ navigation }: any) {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [game?.currentRound?.roundNumber, navigation]);
+  }, [game?.currentRound?.roundNumber, navigation, isPreview]);
 
   // Handle time up separately
   useEffect(() => {
+    if (isPreview) {
+      return;
+    }
     if (timeLeft === 0 && game && game.currentRound && game.state === 'drawing' && !hasHandledTimeUp.current) {
       hasHandledTimeUp.current = true;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
@@ -62,7 +74,7 @@ export default function DrawingScreen({ navigation }: any) {
         }, 1500); // Give 1.5 seconds to see the timeout message
       }, 500);
     }
-  }, [timeLeft, game, endRound, navigation]);
+  }, [timeLeft, game, endRound, navigation, isPreview]);
 
   const handleDone = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -115,7 +127,7 @@ export default function DrawingScreen({ navigation }: any) {
   
   // If we're not the drawer, show a message to pass device
   if (!isDrawer || !drawer?.isDrawing) {
-    return (
+    const waitingContent = (
       <View style={styles.container}>
         <View style={styles.waitingContainer}>
           <Text style={styles.waitingText}>
@@ -130,9 +142,15 @@ export default function DrawingScreen({ navigation }: any) {
         </View>
       </View>
     );
+
+    if (route?.params?.previewMeta) {
+      return <PreviewCanvas meta={route.params.previewMeta}>{waitingContent}</PreviewCanvas>;
+    }
+
+    return waitingContent;
   }
 
-  return (
+  const content = (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <View style={styles.topBar}>
@@ -188,6 +206,7 @@ export default function DrawingScreen({ navigation }: any) {
           clearTrigger={clearTrigger}
           isEraser={isEraser}
         />
+        {isPreview ? <PreviewSketch /> : null}
       </View>
 
       <View style={styles.controlsContainer}>
@@ -242,20 +261,26 @@ export default function DrawingScreen({ navigation }: any) {
       </View>
     </SafeAreaView>
   );
+
+  if (route?.params?.previewMeta) {
+    return <PreviewCanvas meta={route.params.previewMeta}>{content}</PreviewCanvas>;
+  }
+
+  return content;
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.background,
   },
   header: {
-    backgroundColor: '#F9FAFB',
-    borderBottomWidth: 2,
-    borderBottomColor: '#E5E7EB',
-    paddingTop: 8,
-    paddingBottom: 12,
-    paddingHorizontal: 16,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.lg,
+    paddingHorizontal: spacing.xxl,
     minHeight: 60,
   },
   topBar: {
@@ -266,16 +291,12 @@ const styles = StyleSheet.create({
     minHeight: 40,
   },
   secretPromptContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 2,
-    borderColor: '#E5E7EB',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.sm,
   },
   wordHeader: {
     flexDirection: 'row',
@@ -284,17 +305,15 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   secretLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#6B7280',
+    ...typography.caption,
     letterSpacing: 1.5,
     textTransform: 'uppercase',
   },
   hideButton: {
-    backgroundColor: '#6366F1',
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 10,
+    backgroundColor: colors.brand,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
     borderWidth: 0,
   },
   hideButtonText: {
@@ -304,49 +323,47 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   wordDisplay: {
-    backgroundColor: '#EEF2FF',
-    borderRadius: 14,
-    padding: 20,
-    borderWidth: 2,
-    borderColor: '#6366F1',
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.lg,
+    padding: spacing.xxl,
+    borderWidth: 1,
+    borderColor: colors.brand,
     alignItems: 'center',
   },
   secretWord: {
     fontSize: Math.min(32, width * 0.08),
     fontWeight: '900',
-    color: '#6366F1',
+    color: colors.brand,
     textAlign: 'center',
-    letterSpacing: 2,
-    marginBottom: 6,
+    letterSpacing: 1.5,
+    marginBottom: spacing.sm,
   },
   categoryText: {
     fontSize: 14,
-    color: '#8B5CF6',
+    color: colors.textSecondary,
     textAlign: 'center',
     fontStyle: 'italic',
     fontWeight: '500',
   },
   hiddenWordDisplay: {
-    backgroundColor: '#F3F4F6',
-    borderRadius: 14,
-    padding: 24,
-    borderWidth: 2,
+    backgroundColor: colors.background,
+    borderRadius: radius.lg,
+    padding: spacing.xxl,
+    borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: '#D1D5DB',
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 100,
   },
   hiddenWordText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#9CA3AF',
+    ...typography.body,
+    color: colors.textMuted,
     textAlign: 'center',
-    marginBottom: 6,
+    marginBottom: spacing.sm,
   },
   hiddenHint: {
-    fontSize: 12,
-    color: '#9CA3AF',
+    ...typography.caption,
     textAlign: 'center',
   },
   roundProgressContainer: {
@@ -357,7 +374,7 @@ const styles = StyleSheet.create({
   roundProgressText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6B7280',
+    color: colors.textSecondary,
   },
   topBarRight: {
     flexDirection: 'row',
@@ -365,10 +382,10 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   timerContainer: {
-    backgroundColor: '#EF4444',
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
+    backgroundColor: colors.danger,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
     minWidth: 60,
     alignItems: 'center',
     justifyContent: 'center',
@@ -379,87 +396,89 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   exitButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: '#F3F4F6',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: colors.border,
   },
   exitButtonText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#6B7280',
+    color: colors.textSecondary,
   },
   waitingContainer: {
-    flex: 1,
-    justifyContent: 'center',
+    margin: spacing.xxl,
+    padding: spacing.xxl,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
     alignItems: 'center',
-    padding: 20,
+    ...shadows.md,
   },
   waitingText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 8,
+    ...typography.title,
+    color: colors.brand,
+    marginBottom: spacing.sm,
     textAlign: 'center',
   },
   waitingSubtext: {
-    fontSize: 18,
-    color: '#6B7280',
+    ...typography.body,
+    color: colors.textSecondary,
     textAlign: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.lg,
   },
   secretNote: {
     fontSize: 14,
-    color: '#EF4444',
+    color: colors.danger,
     textAlign: 'center',
     fontWeight: '600',
-    marginTop: 12,
-    padding: 12,
+    marginTop: spacing.lg,
+    padding: spacing.lg,
     backgroundColor: '#FEE2E2',
-    borderRadius: 8,
+    borderRadius: radius.md,
   },
   canvasContainer: {
     flex: 1,
-    padding: 12,
+    padding: spacing.lg,
     minHeight: 200,
+    position: 'relative',
   },
   controlsContainer: {
-    backgroundColor: '#FFFFFF',
-    padding: 16,
+    backgroundColor: colors.surface,
+    padding: spacing.xxl,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: colors.border,
   },
   toolSelector: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   toolButton: {
     flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#F9FAFB',
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
     alignItems: 'center',
     maxWidth: 150,
-    marginHorizontal: 4,
+    marginHorizontal: spacing.sm,
   },
   toolButtonActive: {
-    borderColor: '#6366F1',
-    backgroundColor: '#EEF2FF',
+    borderColor: colors.brand,
+    backgroundColor: colors.surfaceAlt,
   },
   toolButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#6B7280',
+    color: colors.textSecondary,
   },
   toolButtonTextActive: {
-    color: '#6366F1',
-    fontWeight: 'bold',
+    color: colors.brand,
+    fontWeight: '700',
   },
   actionButtons: {
     flexDirection: 'row',
@@ -467,40 +486,42 @@ const styles = StyleSheet.create({
   },
   clearButton: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 12,
-    paddingVertical: 14,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    paddingVertical: spacing.lg,
     alignItems: 'center',
-    marginRight: 8,
+    marginRight: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   clearButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#6B7280',
+    color: colors.textSecondary,
   },
   doneButton: {
     flex: 1,
-    backgroundColor: '#10B981',
-    borderRadius: 12,
-    paddingVertical: 14,
+    backgroundColor: colors.accent,
+    borderRadius: radius.md,
+    paddingVertical: spacing.lg,
     alignItems: 'center',
-    marginLeft: 8,
+    marginLeft: spacing.sm,
   },
   doneButtonText: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+    fontWeight: '700',
+    color: colors.white,
   },
   doneButtonDisabled: {
-    backgroundColor: '#EF4444',
+    backgroundColor: colors.danger,
     opacity: 0.9,
   },
   timeoutContainer: {
-    marginTop: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
+    marginTop: spacing.lg,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
     backgroundColor: '#FEE2E2',
-    borderRadius: 10,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: '#FCA5A5',
   },

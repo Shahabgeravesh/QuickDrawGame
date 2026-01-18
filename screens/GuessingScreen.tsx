@@ -3,8 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  TextInput,
-  TouchableOpacity,
   FlatList,
   Dimensions,
   Alert,
@@ -14,6 +12,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { useGame } from '../context/GameContext';
 import * as Haptics from 'expo-haptics';
+import Button from '../components/ui/Button';
+import TextField from '../components/ui/TextField';
+import { colors, spacing, radius, shadows } from '../theme';
 
 const { width, height } = Dimensions.get('window');
 
@@ -294,9 +295,13 @@ export default function GuessingScreen({ navigation }: any) {
             <View style={styles.timerContainer}>
               <Text style={styles.timerText}>{timeLeft}s</Text>
             </View>
-            <TouchableOpacity style={styles.exitButton} onPress={handleExit}>
-              <Text style={styles.exitButtonText}>Exit</Text>
-            </TouchableOpacity>
+            <Button
+              title="Exit"
+              variant="ghost"
+              onPress={handleExit}
+              style={styles.exitButton}
+              textStyle={styles.exitButtonText}
+            />
           </View>
         </View>
         <View style={styles.currentPlayerContainer}>
@@ -343,10 +348,8 @@ export default function GuessingScreen({ navigation }: any) {
       </View>
 
       <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.input}
+        <TextField
           placeholder="What do you think this is?"
-          placeholderTextColor="#999"
           value={guess}
           onChangeText={setGuess}
           autoCapitalize="words"
@@ -354,15 +357,12 @@ export default function GuessingScreen({ navigation }: any) {
           onSubmitEditing={handleSubmitGuess}
           editable={!hasGuessed}
         />
-        <TouchableOpacity
-          style={[styles.submitButton, (!guess.trim() || hasGuessed) && styles.submitButtonDisabled]}
+        <Button
+          title={hasGuessed ? 'You already guessed' : 'Lock it in'}
           onPress={handleSubmitGuess}
           disabled={!guess.trim() || hasGuessed}
-        >
-          <Text style={styles.submitButtonText}>
-            {hasGuessed ? 'YOU ALREADY GUESSED' : 'LOCK IT IN'}
-          </Text>
-        </TouchableOpacity>
+          style={styles.submitButton}
+        />
         {hasGuessed && (
           <Text style={styles.alreadyGuessedText}>
             You've already submitted your guess. Wait for others.
@@ -376,15 +376,15 @@ export default function GuessingScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.background,
   },
   header: {
-    backgroundColor: '#FFFFFF',
-    paddingTop: 12,
-    paddingBottom: 12,
-    paddingHorizontal: 16,
+    backgroundColor: colors.surface,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.lg,
+    paddingHorizontal: spacing.xxl,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
     minHeight: 80,
   },
   headerTop: {
@@ -400,24 +400,25 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: Math.min(24, width * 0.06),
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 4,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
   },
   drawerName: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.textSecondary,
   },
   currentPlayerContainer: {
-    backgroundColor: '#EEF2FF',
-    borderRadius: 12,
-    padding: 10,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
     alignItems: 'center',
   },
   currentPlayerLabel: {
-    fontSize: 14,
-    color: '#6366F1',
-    marginBottom: 4,
+    fontSize: 12,
+    color: colors.brand,
+    marginBottom: spacing.xs,
+    fontWeight: '700',
   },
   playerBadge: {
     flexDirection: 'row',
@@ -428,7 +429,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#6366F1',
+    backgroundColor: colors.brand,
     color: '#FFFFFF',
     fontSize: 20,
     fontWeight: 'bold',
@@ -438,13 +439,13 @@ const styles = StyleSheet.create({
   },
   currentPlayerName: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#6366F1',
+    fontWeight: '700',
+    color: colors.brand,
   },
   playerHint: {
     fontSize: 12,
-    color: '#9CA3AF',
-    marginTop: 4,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
     fontStyle: 'italic',
   },
   correctText: {
@@ -460,10 +461,10 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   timerContainer: {
-    backgroundColor: '#EF4444',
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
+    backgroundColor: colors.danger,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
     minWidth: 60,
     alignItems: 'center',
     justifyContent: 'center',
@@ -475,24 +476,21 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   exitButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: '#F3F4F6',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
     alignSelf: 'flex-start',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
   },
   exitButtonText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#6B7280',
+    color: colors.textSecondary,
   },
   waitingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: spacing.xxxl,
   },
   animationBox: {
     marginBottom: 30,
@@ -504,34 +502,35 @@ const styles = StyleSheet.create({
   },
   waitingText: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 8,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
     textAlign: 'center',
   },
   waitingSubtext: {
     fontSize: 18,
-    color: '#6B7280',
+    color: colors.textSecondary,
     textAlign: 'center',
   },
   guessesContainer: {
     flex: 1,
-    padding: 12,
+    padding: spacing.xxl,
     minHeight: 150,
   },
   guessesLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#6B7280',
-    marginBottom: 12,
+    color: colors.textSecondary,
+    marginBottom: spacing.lg,
   },
   guessItem: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 10,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.sm,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
+    ...shadows.sm,
   },
   guessItemCorrect: {
     borderColor: '#10B981',
@@ -547,7 +546,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#6366F1',
+    backgroundColor: colors.brand,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
@@ -560,7 +559,7 @@ const styles = StyleSheet.create({
   guessPlayer: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.textPrimary,
     flex: 1,
   },
   correctBadge: {
@@ -585,46 +584,27 @@ const styles = StyleSheet.create({
   },
   alreadyGuessedText: {
     fontSize: 12,
-    color: '#EF4444',
+    color: colors.danger,
     textAlign: 'center',
-    marginTop: 8,
+    marginTop: spacing.sm,
     fontStyle: 'italic',
   },
   noGuesses: {
     fontSize: 16,
-    color: '#9CA3AF',
+    color: colors.textMuted,
     fontStyle: 'italic',
     textAlign: 'center',
-    marginTop: 24,
+    marginTop: spacing.xxl,
   },
   inputContainer: {
-    backgroundColor: '#FFFFFF',
-    padding: 12,
+    backgroundColor: colors.surface,
+    padding: spacing.xxl,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-  },
-  input: {
-    backgroundColor: '#F3F4F6',
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 18,
-    color: '#1F2937',
-    marginBottom: 12,
+    borderTopColor: colors.border,
+    gap: spacing.lg,
   },
   submitButton: {
-    backgroundColor: '#10B981',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  submitButtonDisabled: {
-    backgroundColor: '#9CA3AF',
-    opacity: 0.6,
-  },
-  submitButtonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: 'bold',
+    marginTop: spacing.sm,
   },
 });
 

@@ -9,6 +9,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import Header from '../components/ui/Header';
+import { colors, spacing, radius, shadows } from '../theme';
 
 const { width, height } = Dimensions.get('window');
 
@@ -25,15 +27,7 @@ export default function TutorialScreen({ navigation }: any) {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={handleBack}
-          >
-            <Text style={styles.backButtonText}>← Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.title}>How to Play</Text>
-        </View>
+        <Header title="How to Play" onBack={handleBack} />
 
         {/* Game Flow Section */}
         <View style={styles.section}>
@@ -245,67 +239,43 @@ export default function TutorialScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.background,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  header: {
-    marginBottom: 32,
-    marginTop: 8,
-  },
-  backButton: {
-    alignSelf: 'flex-start',
-    padding: 8,
-    marginBottom: 16,
-  },
-  backButtonText: {
-    fontSize: 16,
-    color: '#6366F1',
-    fontWeight: '600',
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    textAlign: 'left',
+    padding: spacing.xxl,
+    paddingBottom: spacing.huge,
   },
   section: {
-    marginBottom: 32,
+    marginBottom: spacing.xxxl,
   },
   sectionTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 20,
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: spacing.xl,
     textAlign: 'left',
   },
   stepCard: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
     borderLeftWidth: 4,
-    borderLeftColor: '#6366F1',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    borderLeftColor: colors.brand,
+    ...shadows.sm,
   },
   stepNumberCircle: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#6366F1',
+    backgroundColor: colors.brand,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 16,
+    marginRight: spacing.lg,
   },
   stepNumber: {
     fontSize: 18,
@@ -316,23 +286,23 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   stepTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 6,
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
   },
   stepDescription: {
-    fontSize: 15,
-    color: '#6B7280',
+    fontSize: 14,
+    color: colors.textSecondary,
     lineHeight: 22,
   },
   pointsCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 16,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.xxl,
+    marginBottom: spacing.lg,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
   },
   pointsTitle: {
     fontSize: 17,
@@ -388,12 +358,12 @@ const styles = StyleSheet.create({
     color: '#1F2937',
   },
   achievementCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 10,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
   },
   achievementTitle: {
     fontSize: 16,
@@ -419,12 +389,12 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   drawerCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 10,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
   },
   drawerTitle: {
     fontSize: 16,
@@ -445,21 +415,21 @@ const styles = StyleSheet.create({
   },
   ruleItem: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
     alignItems: 'flex-start',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
   },
   ruleBullet: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#6366F1',
-    marginRight: 12,
-    marginTop: 8,
+    backgroundColor: colors.brand,
+    marginRight: spacing.lg,
+    marginTop: spacing.sm,
   },
   ruleText: {
     flex: 1,
@@ -468,25 +438,21 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   footer: {
-    marginTop: 20,
-    marginBottom: 20,
+    marginTop: spacing.xl,
+    marginBottom: spacing.xl,
   },
   doneButton: {
-    backgroundColor: '#6366F1',
-    borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 32,
+    backgroundColor: colors.brand,
+    borderRadius: radius.lg,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.xxxl,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    ...shadows.sm,
   },
   doneButtonText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 17,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });
 

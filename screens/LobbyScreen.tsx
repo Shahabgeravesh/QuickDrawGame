@@ -3,32 +3,36 @@ import {
   View,
   Text,
   StyleSheet,
-  TextInput,
-  TouchableOpacity,
   Dimensions,
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useGame } from '../context/GameContext';
 import * as Haptics from 'expo-haptics';
+import Button from '../components/ui/Button';
+import Card from '../components/ui/Card';
+import TextField from '../components/ui/TextField';
+import Header from '../components/ui/Header';
+import { colors, spacing, typography, radius } from '../theme';
+import PreviewCanvas from '../components/preview/PreviewCanvas';
 
 const { width, height } = Dimensions.get('window');
 
-export default function LobbyScreen({ navigation }: any) {
+export default function LobbyScreen({ navigation, route }: any) {
   const { game, addPlayer, startGame } = useGame();
   const [newPlayerName, setNewPlayerName] = useState('');
 
   useEffect(() => {
     // Only navigate back if game is null and we're actually on this screen
     // Add a small delay to prevent race conditions during game creation
-    if (!game) {
+  if (!game) {
       const timer = setTimeout(() => {
         // Double-check game is still null before navigating
         // This prevents navigation during game creation
-        navigation.navigate('Home');
+    navigation.navigate('Home');
       }, 300);
       return () => clearTimeout(timer);
-    }
+  }
   }, [game, navigation]);
 
   const handleAddPlayer = () => {
@@ -50,7 +54,7 @@ export default function LobbyScreen({ navigation }: any) {
     startGame();
     // Navigation will happen via useEffect in DrawingScreen when state is ready
     setTimeout(() => {
-      navigation.navigate('Drawing');
+    navigation.navigate('Drawing');
     }, 100);
   };
 
@@ -65,133 +69,103 @@ export default function LobbyScreen({ navigation }: any) {
     );
   }
 
-  return (
+  const content = (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.header}>
-          <Text style={styles.title}>WHO'S PLAYING?</Text>
-          <Text style={styles.subtitle}>
-          {game.players.length === 1 
-            ? "Just you? That's... sad." 
-            : game.players.length === 2 
-            ? "Two players. Someone's going down."
-            : `${game.players.length} legends ready to embarrass themselves`}
-        </Text>
-      </View>
+        <Header
+          title="Who's Playing?"
+          subtitle={
+            game.players.length === 1
+              ? "Just you? That's... sad."
+              : game.players.length === 2
+              ? "Two players. Someone's going down."
+              : `${game.players.length} legends ready to embarrass themselves`
+          }
+        />
 
-      <View style={styles.playersContainer}>
-        {game.players.map((item) => (
-          <View key={item.id} style={styles.playerCard}>
-            <View style={styles.playerAvatar}>
-              <Text style={styles.playerAvatarText}>
-                {item.name.charAt(0).toUpperCase()}
-              </Text>
-            </View>
-            <Text style={styles.playerName}>{item.name}</Text>
-          </View>
-        ))}
-      </View>
-
-      {game.players.length < 2 ? (
-        <View style={styles.addPlayerContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder="Add another victim"
-            placeholderTextColor="#999"
-            value={newPlayerName}
-            onChangeText={setNewPlayerName}
-            maxLength={20}
-            autoCapitalize="words"
-            autoCorrect={false}
-            onSubmitEditing={handleAddPlayer}
-          />
-          <TouchableOpacity
-            style={[styles.addButton, !newPlayerName.trim() && styles.addButtonDisabled]}
-            onPress={handleAddPlayer}
-            disabled={!newPlayerName.trim()}
-          >
-            <Text style={styles.addButtonText}>+</Text>
-          </TouchableOpacity>
+        <View style={styles.playersContainer}>
+          {game.players.map((item) => (
+            <Card key={item.id} style={styles.playerCard}>
+              <View style={styles.playerAvatar}>
+                <Text style={styles.playerAvatarText}>
+                  {item.name.charAt(0).toUpperCase()}
+                </Text>
+              </View>
+              <Text style={styles.playerName}>{item.name}</Text>
+            </Card>
+          ))}
         </View>
-      ) : (
-        <Text style={styles.limitText}>Only 2 players are allowed</Text>
-      )}
 
-      <TouchableOpacity
-        style={[
-          styles.startButton,
-          game.players.length !== 2 && styles.startButtonDisabled,
-        ]}
-        onPress={handleStart}
-        disabled={game.players.length !== 2}
-      >
-        <Text style={styles.startButtonText}>
-          {game.players.length !== 2 
-            ? 'You need exactly 2 players' 
-            : 'START THE CHAOS'}
-        </Text>
-      </TouchableOpacity>
+        {game.players.length < 2 ? (
+          <View style={styles.addPlayerContainer}>
+            <TextField
+              placeholder="Add player 2"
+              value={newPlayerName}
+              onChangeText={setNewPlayerName}
+              maxLength={20}
+              autoCapitalize="words"
+              autoCorrect={false}
+              onSubmitEditing={handleAddPlayer}
+            />
+            <Button
+              title="Add"
+              onPress={handleAddPlayer}
+              disabled={!newPlayerName.trim()}
+              style={styles.addButton}
+            />
+          </View>
+        ) : (
+          <Text style={styles.limitText}>Only 2 players are allowed</Text>
+        )}
+
+        <Button
+          title={game.players.length !== 2 ? 'You need exactly 2 players' : 'Start the Chaos'}
+          onPress={handleStart}
+          disabled={game.players.length !== 2}
+          style={styles.startButton}
+        />
       </ScrollView>
     </SafeAreaView>
   );
+
+  if (route?.params?.previewMeta) {
+    return <PreviewCanvas meta={route.params.previewMeta}>{content}</PreviewCanvas>;
+  }
+
+  return content;
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#6366F1',
+    backgroundColor: colors.background,
   },
   scrollContent: {
     flexGrow: 1,
-    padding: 20,
-    paddingTop: Math.max(20, height * 0.03),
-    paddingBottom: 24,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  title: {
-    fontSize: Math.min(32, width * 0.08),
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#E0E7FF',
-    textAlign: 'center',
-    paddingHorizontal: 20,
+    padding: spacing.xxl,
+    paddingTop: Math.max(spacing.xl, height * 0.03),
+    paddingBottom: spacing.xxxl,
   },
   playersContainer: {
-    marginBottom: 24,
+    marginBottom: spacing.xxl,
   },
   playerCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    marginBottom: spacing.lg,
   },
   playerAvatar: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#6366F1',
+    backgroundColor: colors.brand,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 16,
+    marginRight: spacing.lg,
   },
   playerAvatarText: {
     fontSize: 20,
@@ -199,71 +173,25 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   playerName: {
-    fontSize: 18,
+    ...typography.body,
     fontWeight: '600',
-    color: '#1F2937',
   },
   addPlayerContainer: {
-    flexDirection: 'row',
-    marginBottom: 16,
+    gap: spacing.lg,
+    marginBottom: spacing.lg,
   },
   limitText: {
-    color: '#FFFFFF',
+    color: colors.textSecondary,
     fontSize: 14,
     fontWeight: '600',
     textAlign: 'center',
-    marginBottom: 16,
-  },
-  input: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    color: '#1F2937',
-    marginRight: 12,
+    marginBottom: spacing.lg,
   },
   addButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#10B981',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  addButtonDisabled: {
-    backgroundColor: '#9CA3AF',
-    opacity: 0.6,
-  },
-  addButtonText: {
-    fontSize: 32,
-    color: '#FFFFFF',
-    fontWeight: 'bold',
+    borderRadius: radius.lg,
   },
   startButton: {
-    backgroundColor: '#10B981',
-    borderRadius: 12,
-    paddingVertical: 18,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  startButtonDisabled: {
-    backgroundColor: '#9CA3AF',
-    opacity: 0.6,
-  },
-  startButtonText: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: 'bold',
+    marginTop: spacing.lg,
   },
   loadingContainer: {
     flex: 1,
@@ -272,7 +200,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 18,
-    color: '#FFFFFF',
+    color: colors.textSecondary,
   },
 });
 

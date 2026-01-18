@@ -73,6 +73,7 @@ interface GameContextType {
   endRound: () => void;
   finishRoundGuessing: () => void;
   resetGame: () => void;
+  setPreviewGame: (previewGame: Game | null) => void;
   gameHistory: GameHistory[];
   deleteHistoryEntry: (id: string) => void;
   clearHistory: () => void;
@@ -418,12 +419,12 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         console.log('[DEBUG submitGuess] New state:', newState);
 
         const updatedGameState = {
-          ...prev,
+        ...prev,
           currentRound: {
             ...updatedRound,
             rewards: allRoundRewards, // Store all rewards for display
           },
-          players: updatedPlayers,
+        players: updatedPlayers,
           currentPlayerId: isCorrect ? undefined : (nextGuesser?.id || prev.currentPlayerId),
           state: newState,
         };
@@ -576,6 +577,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     setGame(null);
   }, []);
 
+  const setPreviewGame = useCallback((previewGame: Game | null) => {
+    setGame(previewGame);
+  }, []);
+
   const deleteHistoryEntry = useCallback(async (id: string) => {
     await deleteGameHistory(id);
     const updatedHistory = await loadGameHistory();
@@ -600,6 +605,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         endRound,
         finishRoundGuessing,
         resetGame,
+        setPreviewGame,
         gameHistory,
         deleteHistoryEntry,
         clearHistory,
