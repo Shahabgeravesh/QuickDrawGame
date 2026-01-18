@@ -42,7 +42,7 @@ export default function LobbyScreen({ navigation }: any) {
 
   const handleStart = () => {
     if (!game) return;
-    if (game.players.length < 2) {
+    if (game.players.length !== 2) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
@@ -96,38 +96,42 @@ export default function LobbyScreen({ navigation }: any) {
         ))}
       </View>
 
-      <View style={styles.addPlayerContainer}>
-        <TextInput
-          style={styles.input}
-          placeholder="Add another victim"
-          placeholderTextColor="#999"
-          value={newPlayerName}
-          onChangeText={setNewPlayerName}
-          maxLength={20}
-          autoCapitalize="words"
-          autoCorrect={false}
-          onSubmitEditing={handleAddPlayer}
-        />
-        <TouchableOpacity
-          style={[styles.addButton, !newPlayerName.trim() && styles.addButtonDisabled]}
-          onPress={handleAddPlayer}
-          disabled={!newPlayerName.trim()}
-        >
-          <Text style={styles.addButtonText}>+</Text>
-        </TouchableOpacity>
-      </View>
+      {game.players.length < 2 ? (
+        <View style={styles.addPlayerContainer}>
+          <TextInput
+            style={styles.input}
+            placeholder="Add another victim"
+            placeholderTextColor="#999"
+            value={newPlayerName}
+            onChangeText={setNewPlayerName}
+            maxLength={20}
+            autoCapitalize="words"
+            autoCorrect={false}
+            onSubmitEditing={handleAddPlayer}
+          />
+          <TouchableOpacity
+            style={[styles.addButton, !newPlayerName.trim() && styles.addButtonDisabled]}
+            onPress={handleAddPlayer}
+            disabled={!newPlayerName.trim()}
+          >
+            <Text style={styles.addButtonText}>+</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <Text style={styles.limitText}>Only 2 players are allowed</Text>
+      )}
 
       <TouchableOpacity
         style={[
           styles.startButton,
-          game.players.length < 2 && styles.startButtonDisabled,
+          game.players.length !== 2 && styles.startButtonDisabled,
         ]}
         onPress={handleStart}
-        disabled={game.players.length < 2}
+        disabled={game.players.length !== 2}
       >
         <Text style={styles.startButtonText}>
-          {game.players.length < 2 
-            ? 'You need friends for this...' 
+          {game.players.length !== 2 
+            ? 'You need exactly 2 players' 
             : 'START THE CHAOS'}
         </Text>
       </TouchableOpacity>
@@ -201,6 +205,13 @@ const styles = StyleSheet.create({
   },
   addPlayerContainer: {
     flexDirection: 'row',
+    marginBottom: 16,
+  },
+  limitText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
     marginBottom: 16,
   },
   input: {

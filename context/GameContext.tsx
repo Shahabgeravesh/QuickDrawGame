@@ -79,6 +79,7 @@ interface GameContextType {
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
+const MAX_PLAYERS = 2;
 
 export function GameProvider({ children }: { children: React.ReactNode }) {
   const [game, setGame] = useState<Game | null>(null);
@@ -92,6 +93,19 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     };
     fetchHistory();
   }, []);
+
+  // Runtime protection: enforce max player count in all game state
+  useEffect(() => {
+    if (!game || game.players.length <= MAX_PLAYERS) return;
+    console.warn(`[WARN GameContext] Trimming players from ${game.players.length} to ${MAX_PLAYERS}`);
+    setGame((prev) => {
+      if (!prev || prev.players.length <= MAX_PLAYERS) return prev;
+      return {
+        ...prev,
+        players: prev.players.slice(0, MAX_PLAYERS),
+      };
+    });
+  }, [game]);
 
   const createGame = useCallback((playerName: string) => {
     const newGame: Game = {
@@ -121,6 +135,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const addPlayer = useCallback((name: string) => {
     setGame((prev) => {
       if (!prev) return null;
+      if (prev.players.length >= MAX_PLAYERS) {
+        console.warn('[WARN GameContext] addPlayer ignored - max players reached');
+        return prev;
+      }
       const newPlayer: Player = {
         id: (prev.players.length + 1).toString(),
         name,
@@ -205,7 +223,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
   const startGame = useCallback(() => {
     setGame((prev) => {
-      if (!prev || prev.players.length < 2) return prev;
+      if (!prev || prev.players.length !== MAX_PLAYERS) {
+        console.warn('[WARN GameContext] startGame blocked - must have exactly 2 players');
+        return prev;
+      }
       
       // Start the first round immediately
       const roundNumber = 1;

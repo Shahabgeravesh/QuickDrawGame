@@ -18,7 +18,7 @@ try {
 // This will show between rounds in the game
 const INTERSTITIAL_AD_UNIT_ID = __DEV__
   ? (TestIds?.INTERSTITIAL || 'test-id') // Use test ID in development (automatically used in dev mode)
-  : 'ca-app-pub-5925476125839963/8531254723'; // Production Ad Unit ID from AdMob
+  : (process.env.EXPO_PUBLIC_ADMOB_INTERSTITIAL_ID || '');
 
 class AdService {
   private interstitialAd: any = null;
@@ -40,6 +40,15 @@ class AdService {
     try {
       this.isAdMobAvailable = true;
       await mobileAds().initialize();
+      const testDeviceIds = process.env.EXPO_PUBLIC_ADMOB_TEST_DEVICE_IDS
+        ?.split(',')
+        .map((id) => id.trim())
+        .filter(Boolean);
+      if (testDeviceIds && testDeviceIds.length > 0) {
+        await mobileAds().setRequestConfiguration({
+          testDeviceIdentifiers: testDeviceIds,
+        });
+      }
       this.isInitialized = true;
       this.loadInterstitial();
     } catch (error) {
@@ -94,6 +103,11 @@ class AdService {
     // If AdMob is not available (e.g., running in Expo Go), just return false silently
     if (!this.isAdMobAvailable) {
       // Silently skip ads in Expo Go - no need to log every time
+      return false;
+    }
+
+    if (!INTERSTITIAL_AD_UNIT_ID) {
+      console.warn('AdMob interstitial ID missing - skipping ads');
       return false;
     }
 

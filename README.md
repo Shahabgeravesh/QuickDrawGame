@@ -119,11 +119,32 @@ settings: {
 }
 ```
 
+## 📣 AdMob (Expo)
+
+AdMob is configured via environment variables and the Expo config file.
+
+**Where IDs are set**
+- Expo config: `app.config.js` uses `ADMOB_ANDROID_APP_ID` and `ADMOB_IOS_APP_ID`
+- Ad unit ID: `EXPO_PUBLIC_ADMOB_INTERSTITIAL_ID` (used in `services/AdService.ts`)
+- Test devices: `EXPO_PUBLIC_ADMOB_TEST_DEVICE_IDS` (comma-separated)
+
+**Switch test vs production**
+- Development builds use Google test ads automatically.
+- Production builds require `EXPO_PUBLIC_ADMOB_INTERSTITIAL_ID` to be set.
+
+**Rebuild when IDs change**
+```bash
+eas build --platform ios
+eas build --platform android
+```
+
+> Ads do not load in Expo Go. Use a development build or EAS build.
+
 ## 🚢 Building for Production
 
 ### iOS
 
-1. Configure your app in `app.json`
+1. Configure your app in `app.config.js`
 2. Build with EAS:
 ```bash
 eas build --platform ios
@@ -138,7 +159,7 @@ eas submit --platform ios
 
 To prepare for Apple Arcade submission:
 
-1. **No IAP/Ads**: ✅ Already implemented - no in-app purchases or ads
+1. **No IAP/Ads**: Ads are enabled in this project. Remove AdMob for Apple Arcade.
 2. **Premium Quality**: Focus on polish, animations, and user experience
 3. **Unique Features**: Consider adding:
    - Online multiplayer support

@@ -53,12 +53,12 @@ export default function DrawingScreen({ navigation }: any) {
   useEffect(() => {
     if (timeLeft === 0 && game && game.currentRound && game.state === 'drawing' && !hasHandledTimeUp.current) {
       hasHandledTimeUp.current = true;
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       // Show timeout message briefly before navigating
       setTimeout(() => {
-        endRound();
+    endRound();
         setTimeout(() => {
-          navigation.navigate('Results');
+    navigation.navigate('Results');
         }, 1500); // Give 1.5 seconds to see the timeout message
       }, 500);
     }
@@ -69,7 +69,7 @@ export default function DrawingScreen({ navigation }: any) {
     endRound();
     // Navigate to guessing screen after state updates
     setTimeout(() => {
-      navigation.navigate('Guessing');
+    navigation.navigate('Guessing');
     }, 50);
   };
 
@@ -140,10 +140,10 @@ export default function DrawingScreen({ navigation }: any) {
             <Text style={styles.roundProgressText} numberOfLines={1}>
               Round {game.currentRound.roundNumber} of {game.settings.roundsPerGame}
             </Text>
-          </View>
+        </View>
           <View style={styles.topBarRight}>
-            <View style={styles.timerContainer}>
-              <Text style={styles.timerText}>{timeLeft}s</Text>
+        <View style={styles.timerContainer}>
+          <Text style={styles.timerText}>{timeLeft}s</Text>
             </View>
             <TouchableOpacity style={styles.exitButton} onPress={handleExit}>
               <Text style={styles.exitButtonText}>Exit</Text>
@@ -192,28 +192,28 @@ export default function DrawingScreen({ navigation }: any) {
 
       <View style={styles.controlsContainer}>
         <View style={styles.toolSelector}>
-          <TouchableOpacity
+            <TouchableOpacity
             style={[styles.toolButton, !isEraser && styles.toolButtonActive]}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               setIsEraser(false);
-            }}
+              }}
           >
             <Text style={[styles.toolButtonText, !isEraser && styles.toolButtonTextActive]}>
               DRAW
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity
+            <TouchableOpacity
             style={[styles.toolButton, isEraser && styles.toolButtonActive]}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               setIsEraser(true);
-            }}
-          >
+              }}
+            >
             <Text style={[styles.toolButtonText, isEraser && styles.toolButtonTextActive]}>
               ERASE
             </Text>
-          </TouchableOpacity>
+            </TouchableOpacity>
         </View>
 
         <View style={styles.actionButtons}>

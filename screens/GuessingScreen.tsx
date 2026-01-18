@@ -35,7 +35,7 @@ export default function GuessingScreen({ navigation }: any) {
     // Check this BEFORE checking currentRound, since finished games don't have currentRound
     if (game.state === 'results' || game.state === 'finished') {
       // Navigate immediately to Results (no delay needed)
-      navigation.navigate('Results');
+        navigation.navigate('Results');
       return;
     }
 
@@ -151,7 +151,7 @@ export default function GuessingScreen({ navigation }: any) {
     if (isCorrect) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } else {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
     
     submitGuess(currentGuesser.id, guessText);
@@ -243,8 +243,8 @@ export default function GuessingScreen({ navigation }: any) {
     }
     
     return (
-        <View style={styles.container}>
-          <View style={styles.waitingContainer}>
+      <View style={styles.container}>
+        <View style={styles.waitingContainer}>
             <View style={styles.animationBox}>
               <Svg width={200} height={150} style={styles.waitingSvg}>
                 {/* Animated wavy line - draws progressively */}
@@ -274,11 +274,11 @@ export default function GuessingScreen({ navigation }: any) {
             <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
               <Text style={styles.waitingText}>Calculating...</Text>
             </Animated.View>
-            <Text style={styles.waitingSubtext}>
+          <Text style={styles.waitingSubtext}>
               Let's see whose art was actually recognizable
-            </Text>
-          </View>
+          </Text>
         </View>
+      </View>
     );
   }
 
@@ -304,7 +304,7 @@ export default function GuessingScreen({ navigation }: any) {
           <View style={styles.playerBadge}>
             <Text style={styles.playerBadgeInitial}>{currentGuesser.name.charAt(0).toUpperCase()}</Text>
             <Text style={styles.currentPlayerName} numberOfLines={1}>{currentGuesser.name}</Text>
-          </View>
+        </View>
           <Text style={styles.playerHint} numberOfLines={2}>Pass the device to {currentGuesser.name} if it's not you</Text>
         </View>
       </View>
@@ -328,7 +328,7 @@ export default function GuessingScreen({ navigation }: any) {
                     <View style={styles.correctBadge}>
                       <Text style={styles.correctMark}>CORRECT</Text>
                     </View>
-                  )}
+                )}
                 </View>
                 <Text style={[styles.guessText, isCorrect && styles.guessTextCorrect]}>
                   "{item.guess}"
